@@ -19,7 +19,7 @@ export const CLIENT_BUILD_PROFILE_SELECTOR = 'DSH_BUILD_CLIENT_PROFILE'
 /** Public client environment required by official DSH artifacts. */
 const OFFICIAL_CLIENT_BUILD_ENVIRONMENT = {
   DSH_CLIENT_BUILD_PROFILE: 'official',
-  DSH_CLIENT_TITLE: 'DeepSeek Harness',
+  DSH_CLIENT_TITLE: 'LePal',
 } as const
 
 /** Public variable carrying the source commit embedded in client artifacts. */
@@ -206,6 +206,7 @@ export function resolveClientBuildEnvironment(
       DSH_CLIENT_VERSION: version,
       ...(profile === 'official' ? OFFICIAL_CLIENT_BUILD_ENVIRONMENT : {
         DSH_CLIENT_BUILD_PROFILE: 'local',
+        DSH_CLIENT_TITLE: 'LePal',
         ...(environment.DSH_CLIENT_GIT_DIRTY === 'true' ? { DSH_CLIENT_GIT_DIRTY: 'true' } : {}),
       }),
     }

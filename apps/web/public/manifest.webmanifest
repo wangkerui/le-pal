@@ -1,11 +1,11 @@
 {
-  "name": "DeepSeek Harness",
-  "short_name": "DSH",
+  "name": "LePal",
+  "short_name": "LePal",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "theme_color": "#1D4ED8",
   "icons": [
     {
       "src": "icon-192.png",
