@@ -345,7 +345,7 @@ describe('DiscoverSection', () => {
     expect(openPackage).toHaveBeenCalledWith('dsh-b')
     fireEvent.click(git.getByRole('button', { name: en.backToList }))
     fireEvent.click(card('dsh-g').getByRole('button', { name: 'View dsh-g' }))
-    expect(screen.getAllByText('This version is not compatible with the running DSH 0.2.0; it requires DSH 0.1.0.')).toHaveLength(2)
+    expect(screen.getAllByText('This version is not compatible with the running LePal 0.2.0; it requires LePal 0.1.0.')).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: en.backToList }))
     fireEvent.click(card('dsh-h').getByRole('button', { name: 'View dsh-h' }))
     expect(screen.getAllByText(en.exempted)).toHaveLength(2)
@@ -432,7 +432,7 @@ describe('DiscoverSection', () => {
     expect(update).toHaveBeenLastCalledWith({ packageName: name, version: '1.2.0', spec: 'git+https://git.example/o/w.git#1.2.0' })
   })
 
-  it('marks exempted versions and offers no version of a bundle DSH provides', () => {
+  it('marks exempted versions and offers no version of a bundle LePal provides', () => {
     const name = 'dsh-x'
     const exempted = release(name, '2.0.0', { compatibility: { ...INCOMPATIBLE, exempted: true } })
     const entries: MarketListingEntry[] = [
