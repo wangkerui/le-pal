@@ -306,7 +306,7 @@ describe('desktop upload plan', () => {
     await expect(createDesktopUploadPlan('win-x64', paths)).rejects.toThrow(/missing or empty artifact.*\.exe\.blockmap/u)
   })
 
-  it('rejects a completed build from another dsh version or deployment', async () => {
+  it('rejects a completed build from another lepal version or deployment', async () => {
     const paths = await fixture('mac-x64')
     await writeFile(join(paths.repositoryRoot, 'package.json'), '{"version":"1.2.4"}\n')
     await writeFile(join(paths.appRoot, 'package.json'), '{"version":"1.2.4"}\n')

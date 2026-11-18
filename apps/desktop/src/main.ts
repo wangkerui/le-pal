@@ -80,6 +80,10 @@ let shuttingDown = false
  * development restart command. The installer handoff has its own before-quit branch.
  */
 let skipQuitConfirmation = false
+// A branded installation keeps its Electron state (window, shortcuts, desktop
+// settings, update markers) apart from an official DeepSeek Harness install.
+app.setName('LePal')
+app.setPath('userData', join(app.getPath('appData'), 'LePal'))
 let windowsLanguage: string | undefined = readDesktopLocaleCache(app.getPath('userData'))
 /**
  * Whether the backend has reached ready: false until the first ready, back to
@@ -1485,10 +1489,10 @@ async function main(): Promise<void> {
     window.focus()
   }
 
-  if (app.isPackaged || process.env.DSH_DESKTOP_DEV_APP === '1') app.setAsDefaultProtocolClient('dsh')
+  if (app.isPackaged || process.env.DSH_DESKTOP_DEV_APP === '1') app.setAsDefaultProtocolClient('lepal')
   app.on('open-url', (event, url) => {
     event.preventDefault()
-    if (url === 'dsh://open' || url === 'dsh://open/') focusPrimaryWindow()
+    if (url === 'lepal://open' || url === 'lepal://open/') focusPrimaryWindow()
   })
 
   app.on('activate', (_event, hasVisibleWindows) => {

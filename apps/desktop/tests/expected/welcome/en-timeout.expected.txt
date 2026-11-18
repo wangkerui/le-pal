@@ -1,5 +1,5 @@
-DeepSeek Harness
-DeepSeek Harness
+LePal
+LePal
 Sign in timed out
 Sign in again
 Add API Key
