@@ -1,0 +1,267 @@
+name: Build Desktop · Windows · GitHub-hosted · unsigned
+
+# Internal, unsigned Windows desktop builds on GitHub-hosted runners.
+#
+# This workflow is NOT a release path. It exists so contributors without access
+# to the packaging machine can still produce and download a Windows installer.
+# Signed installers, anything publishable, and anything the auto-updater may
+# consume must come from `.github/workflows/windows-package.yml` on the
+# self-hosted `dsh-win-package-trial` runner, which owns the EV hardware token.
+# Unsigned builds are internal debugging artifacts only: never publish them to
+# test/production and never serve them to the updater ([packaging guide](../../apps/desktop/packaging/README.md)).
+#
+# No COS upload, no release tag, no retained package inventory: the job stops at
+# the Actions artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: '打包源码：仓库内分支或 tag（须包含 apps/desktop 打包脚本）'
+        type: string
+        default: master
+        required: true
+      build_version:
+        description: '构建版本：留空使用 apps/desktop/package.json 的产品版本'
+        type: string
+        default: ''
+        required: false
+      compression_level:
+        description: '安装器压缩等级：3 打包较快，7 压缩更强'
+        type: choice
+        options: ['3', '7']
+        default: '3'
+        required: true
+      runner:
+        description: '运行机器：默认 GitHub 托管 windows-latest；大机器请填组织已配置的标签'
+        type: string
+        default: windows-latest
+        required: true
+      policy_origin:
+        description: '强制更新策略 origin，会写进安装包；须为裸 HTTPS origin'
+        type: string
+        default: 'https://download.deepseek.com'
+        required: true
+      policy_auth_origin:
+        description: '测试环境登录 origin，会写进安装包；须为裸 HTTPS origin'
+        type: string
+        default: 'https://download.deepseek.com'
+        required: true
+      artifact_retention_days:
+        description: '制品保留天数'
+        type: number
+        default: 14
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-desktop-github-hosted-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # CI runs must never report to the production telemetry endpoint baked into apps/cli/cordis.yml.
+  DSH_TELEMETRY_DISABLED: '1'
+  ARTIFACTS_DIR: apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts
+
+jobs:
+  package:
+    name: windows x64 / unsigned installer
+    runs-on: ${{ inputs.runner }}
+    # The packaging sequence builds the whole repository, packs the runtime,
+    # then runs electron-builder and a packaged-runtime smoke test. A hosted
+    # 4-vCPU machine is considerably slower than the packaging machine.
+    timeout-minutes: 240
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      # Downloaded Electron archives, prepared Node runtimes and the packaging
+      # pnpm store live outside any target directory so a clean checkout reuses them.
+      DSH_DESKTOP_PACKAGE_CACHE_DIR: ${{ github.workspace }}/apps/desktop/.desktop-build/cache
+      # Every primary-runtime asset (Node archive, python-build-standalone,
+      # wheels) is fetched with this per-download budget; the default 300000
+      # aborts the whole packaging run on a cold cache over a slow egress path.
+      DSH_RESOURCE_DOWNLOAD_TIMEOUT_MS: '900000'
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_ref }}
+
+      # pnpm links workspace packages with symlinks; Windows only grants that to
+      # a user allowed to create them (hosted runners run as administrators).
+      - name: Enable Developer Mode (symlink support)
+        run: >-
+          reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock"
+          /t REG_DWORD /f /v "AllowDevelopmentWithoutDevLicense" /d "1"
+
+      - uses: pnpm/action-setup@v5.0.0
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}
+          run_install: false
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Locate pnpm store
+        id: store
+        run: echo "path=$(pnpm store path)" >> $env:GITHUB_OUTPUT
+
+      - name: Restore pnpm store
+        id: store-cache
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-store-windows-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-windows-
+
+      # Every cached file name carries its version, so a lockfile or desktop
+      # manifest change is the right invalidation signal.
+      - name: Restore packaging downloads
+        id: downloads-cache
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: apps/desktop/.desktop-build/cache
+          key: desktop-package-cache-windows-${{ hashFiles('pnpm-lock.yaml', 'apps/desktop/package.json') }}
+          restore-keys: |
+            desktop-package-cache-windows-
+
+      - name: Install locked dependencies
+        run: |
+          node -e "const os=require('node:os'); console.log(JSON.stringify({node:process.version,availableParallelism:os.availableParallelism(),logicalCpus:os.cpus().length,totalMemoryBytes:os.totalmem(),freeMemoryBytes:os.freemem()}))"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # A hosted Windows runner has a comparatively small workspace volume;
+          # the monorepo install plus the packaged runtime is the bulk of it.
+          Get-PSDrive -PSProvider FileSystem | Select-Object Name, @{ n = 'FreeGB'; e = { [math]::Round($_.Free / 1GB, 1) } } | Format-Table | Out-String | Write-Host
+          pnpm install --frozen-lockfile
+          exit $LASTEXITCODE
+
+      # The Windows packaging sequence requires the policy settings even when
+      # unsigned, and reads them only from apps/desktop/.env.windows: ambient
+      # DSH_DESKTOP_* variables are filtered out by the loader. Generate that
+      # file so no machine configuration has to exist on a hosted runner.
+      - name: Write packaging settings
+        id: prepare
+        env:
+          INPUT_BUILD_VERSION: ${{ inputs.build_version }}
+          INPUT_COMPRESSION_LEVEL: ${{ inputs.compression_level }}
+          INPUT_POLICY_ORIGIN: ${{ inputs.policy_origin }}
+          INPUT_POLICY_AUTH_ORIGIN: ${{ inputs.policy_auth_origin }}
+          INPUT_APP_ID: com.deepseek.dsh
+        run: |
+          $origin = "$env:INPUT_POLICY_ORIGIN".Trim().TrimEnd('/')
+          $authOrigin = "$env:INPUT_POLICY_AUTH_ORIGIN".Trim().TrimEnd('/')
+          foreach ($value in @($origin, $authOrigin)) {
+            if ($value -cnotmatch '^https://[^/]+$') { throw "Policy origins must be bare HTTPS origins, got '$value'" }
+          }
+          $appId = "$env:INPUT_APP_ID".Trim()
+          if ($appId -cnotmatch '^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$') { throw "Invalid application id '$appId'" }
+          $compression = $env:INPUT_COMPRESSION_LEVEL
+          if (@('3', '7') -cnotcontains $compression) { throw "Compression level must be 3 or 7, got '$compression'" }
+          # No spaces and no quoting inside the JSON value: the dotenv parser
+          # keeps an unquoted value verbatim.
+          $settings = @(
+            "DSH_DESKTOP_APP_ID=$appId"
+            'DSH_DESKTOP_AUTO_UPDATE_ENV=test'
+            "DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN=$origin"
+            "DSH_DESKTOP_MANDATORY_UPDATE_CONFIG={`"allowedAuthOrigins`":[`"$authOrigin`"]}"
+            "DSH_DESKTOP_WINDOWS_COMPRESSION_LEVEL=$compression"
+            'DSH_DESKTOP_WINDOWS_PACK_CONCURRENCY=4'
+            'DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY=4'
+          )
+          $settings -join "`n" | Set-Content -LiteralPath 'apps/desktop/.env.windows' -Encoding utf8NoBOM -NoNewline
+          $product = (Get-Content 'apps/desktop/package.json' -Raw | ConvertFrom-Json).version
+          $version = if ([string]::IsNullOrWhiteSpace($env:INPUT_BUILD_VERSION)) { $product } else { $env:INPUT_BUILD_VERSION.Trim() }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Prepared unsigned Windows installer $version with policy origin $origin"
+
+      # Fail before the hour-long build when the runner lacks tar or the Visual
+      # Studio C++ tools the installer helper compiles with.
+      - name: Check packaging configuration and toolchain
+        env:
+          PACKAGE_BUILD_VERSION: ${{ inputs.build_version }}
+        run: |
+          $packageArgs = @('run', 'package:desktop:win:x64', '--check', '--unsigned')
+          if (-not [string]::IsNullOrWhiteSpace($env:PACKAGE_BUILD_VERSION)) {
+            $packageArgs += @('--build-version', $env:PACKAGE_BUILD_VERSION.Trim())
+          }
+          pnpm @packageArgs
+          exit $LASTEXITCODE
+
+      - name: Build installer and verify packaged runtime
+        env:
+          PACKAGE_BUILD_VERSION: ${{ inputs.build_version }}
+        run: |
+          $packageArgs = @('run', 'package:desktop:win:x64', '--unsigned')
+          if (-not [string]::IsNullOrWhiteSpace($env:PACKAGE_BUILD_VERSION)) {
+            $packageArgs += @('--build-version', $env:PACKAGE_BUILD_VERSION.Trim())
+          }
+          Write-Host "pnpm $($packageArgs -join ' ')"
+          pnpm @packageArgs
+          exit $LASTEXITCODE
+
+      - name: Summarize installer
+        if: success()
+        run: |
+          if (-not (Test-Path -LiteralPath $env:ARTIFACTS_DIR -PathType Container)) { throw "Missing artifact directory $env:ARTIFACTS_DIR" }
+          $installers = @(Get-ChildItem -LiteralPath $env:ARTIFACTS_DIR -Filter '*.exe' -File)
+          if ($installers.Count -eq 0) { throw "No installer was produced in $env:ARTIFACTS_DIR" }
+          $lines = @(
+            'Windows x64 unsigned installer'
+            ''
+            "Version: ${{ steps.prepare.outputs.version }}"
+            "Commit: ${{ github.sha }}"
+            "Runner: ${{ inputs.runner }}"
+            ''
+          )
+          foreach ($installer in $installers) {
+            $lines += ('{0} - {1:N1} MB' -f $installer.Name, ($installer.Length / 1MB))
+          }
+          $lines += ''
+          $lines += 'Unsigned: internal debugging only. Signed release builds must use Package Desktop - Windows - x64.'
+          $lines -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
+      - name: Retain packaging diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: windows-package-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          path: apps/desktop/.desktop-build/packaging-runs/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Retain unsigned installer
+        if: success()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: windows-x64-unsigned-${{ steps.prepare.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          # The installer is already compressed; do not expand it into a ZIP again.
+          compression-level: 0
+          include-hidden-files: true
+          path: |
+            apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.exe
+            apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.blockmap
+            apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.yml
+          if-no-files-found: error
+          retention-days: ${{ inputs.artifact_retention_days }}
+
+      # Caching is an optimization: a cache failure must never fail a build that
+      # produced an installer.
+      - name: Save pnpm store
+        if: always() && steps.store-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v6.1.0
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-store-windows-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Save packaging downloads
+        if: always() && steps.downloads-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v6.1.0
+        with:
+          path: apps/desktop/.desktop-build/cache
+          key: desktop-package-cache-windows-${{ hashFiles('pnpm-lock.yaml', 'apps/desktop/package.json') }}
