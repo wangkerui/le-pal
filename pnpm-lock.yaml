@@ -16,6 +16,7 @@ patchedDependencies:
   '@electron/osx-sign@1.3.3': 280e7b2816caf01423097d24e79107a66afeb563a348630ce9928ae8499a5861
   '@fortune-sheet/core@1.0.4': 8791a230763dbf853fd65d627c68c31de37209992851377855e16cf08ea70532
   '@fortune-sheet/react@1.0.4': 2932e52e79afcd4ced08cfa123b5eded786c85043da32f622f3e80af6fc96c37
+  '@linxin666/dsh-client-ui-skill-explorer@0.4.19': d6297ab8b2334fd51e27dae81c3df931c6b4d7031362d94ef184f14acc5add18
   '@yao-pkg/pkg@6.21.0': 6004ea831bf18a0272276f3308456b7799d5ac32a5e69c138008b6329c1bfb9f
   app-builder-lib@26.17.0: b70dc2a2a78ffabb80a4f14fafc7c103237f2b0a207e1f296fa1c1387ea29348
   exceljs@4.4.0: c1bf8ac8f319dab382f08e3a669b715e691d46c703ac5a4163eb383fbedd1d48
@@ -3557,7 +3558,7 @@ importers:
         version: link:../../../vendor/schemastery
       '@linxin666/dsh-client-ui-skill-explorer':
         specifier: 0.4.19
-        version: 0.4.19(react@18.3.1)
+        version: 0.4.19(patch_hash=d6297ab8b2334fd51e27dae81c3df931c6b4d7031362d94ef184f14acc5add18)(react@18.3.1)
       commander:
         specifier: ^15.0.0
         version: 15.0.0
@@ -19227,6 +19228,9 @@ importers:
       '@deepseek-ai/dsh-web-app':
         specifier: workspace:*
         version: link:../../bundle/web-app
+      '@linxin666/dsh-client-ui-skill-explorer':
+        specifier: 0.4.19
+        version: 0.4.19(patch_hash=d6297ab8b2334fd51e27dae81c3df931c6b4d7031362d94ef184f14acc5add18)(react@18.3.1)
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -30166,7 +30170,7 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
-  '@linxin666/dsh-client-ui-skill-explorer@0.4.19(react@18.3.1)':
+  '@linxin666/dsh-client-ui-skill-explorer@0.4.19(patch_hash=d6297ab8b2334fd51e27dae81c3df931c6b4d7031362d94ef184f14acc5add18)(react@18.3.1)':
     dependencies:
       react: 18.3.1
 

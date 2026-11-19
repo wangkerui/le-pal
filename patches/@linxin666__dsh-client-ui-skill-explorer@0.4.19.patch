@@ -1,0 +1,22 @@
+diff --git a/lib/client.js b/lib/client.js
+index 51c128b37403831ea9ff11dfd8d876db39cfd173..a9c174f946bc576cc58d0d291e1fcc4455cd22ed 100644
+--- a/lib/client.js
++++ b/lib/client.js
+@@ -268,7 +268,7 @@ window.__ModuleLoader__.load({
+ 			"group.user-dsh": "用户技能（~/.dsh/skills）",
+ 			"group.user-agents": "用户技能（~/.agents/skills）",
+ 			"group.runtime": "运行时注册",
+-			"groupHint.bundled": "DSH 内置与插件随附的全局技能",
++			"groupHint.bundled": "LePal 内置与插件随附的全局技能",
+ 			"groupHint.project-dsh": "存放于项目目录，作用于所在项目",
+ 			"groupHint.project-agents": "存放于项目目录，作用于对应项目",
+ 			"groupHint.custom": "customSkillDirs 自定义配置目录",
+@@ -384,7 +384,7 @@ window.__ModuleLoader__.load({
+ 			"group.user-dsh": "User skills (~/.dsh/skills)",
+ 			"group.user-agents": "User skills (~/.agents/skills)",
+ 			"group.runtime": "Runtime registered",
+-			"groupHint.bundled": "Global skills shipped with DSH and its plugins",
++			"groupHint.bundled": "Global skills shipped with LePal and its plugins",
+ 			"groupHint.project-dsh": "Located in the project directory, scoped to its workspace",
+ 			"groupHint.project-agents": "Located in the project directory, scoped to its workspace",
+ 			"groupHint.custom": "customSkillDirs config",

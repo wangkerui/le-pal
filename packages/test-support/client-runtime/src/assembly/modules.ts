@@ -14,6 +14,13 @@ import type { AssemblyPlan, ClientPluginModule } from './roster.ts'
 export const MODULES_PACKAGE = '@deepseek-ai/dsh-client-modules'
 
 /**
+ * Third-party bundles ship the `window.__ModuleLoader__` registration format
+ * instead of an importable ESM namespace, so the in-process assembly leaves
+ * them out; the browser runtime installs the loader that executes them.
+ */
+const PREBUILT_ROWS: ReadonlySet<string> = new Set(['@linxin666/dsh-client-ui-skill-explorer'])
+
+/**
  * Resolve each roster row to its plugin module: `plan.provide[name]` when
  * present, otherwise a `/client` import resolved by the repository's tsconfig
  * path aliases under Vitest. The bootstrap row is the
@@ -25,6 +32,11 @@ export const MODULES_PACKAGE = '@deepseek-ai/dsh-client-modules'
 export async function loadPluginModules(plan: AssemblyPlan): Promise<ReadonlyMap<string, ClientPluginModule>> {
   const modules = new Map<string, ClientPluginModule>()
   for (const { name } of plan.roster.rows) {
+    // A prebuilt row still activates; it contributes nothing to the in-process assembly.
+    if (PREBUILT_ROWS.has(name)) {
+      modules.set(name, { apply: () => {} })
+      continue
+    }
     const provided = plan.provide?.[name]
     if (name === MODULES_PACKAGE) {
       if (provided !== undefined) {

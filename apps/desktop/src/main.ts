@@ -81,7 +81,7 @@ let shuttingDown = false
  */
 let skipQuitConfirmation = false
 // A branded installation keeps its Electron state (window, shortcuts, desktop
-// settings, update markers) apart from an official DeepSeek Harness install.
+// settings, update markers) apart from an official LePal install.
 app.setName('LePal')
 app.setPath('userData', join(app.getPath('appData'), 'LePal'))
 let windowsLanguage: string | undefined = readDesktopLocaleCache(app.getPath('userData'))
