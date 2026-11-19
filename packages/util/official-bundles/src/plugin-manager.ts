@@ -32,6 +32,9 @@ export const HIDDEN_BUNDLES: ReadonlySet<string> = new Set([
   '@deepseek-ai/dsh-experimental-terminal-bundle',
   '@deepseek-ai/dsh-experimental-tool-worktree',
   '@deepseek-ai/dsh-cua-mcp',
+  // LePal deployments do not offer the badge skill or DeepSeek website chat import.
+  '@deepseek-ai/dsh-experimental-badge-skill-bundle',
+  '@deepseek-ai/dsh-deepseek-chat-import',
 ])
 
 /**

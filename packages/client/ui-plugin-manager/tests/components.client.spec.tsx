@@ -1389,7 +1389,7 @@ describe('PluginManagerPage', () => {
         .toEqual(['more'])
       const more = document.querySelector('[data-plugin-group="more"]') as HTMLElement
       expect(within(more).getAllByRole('listitem').map(card => card.getAttribute('data-plugin-package')))
-        .toEqual([team, '@acme/new-official', '@deepseek-ai/dsh-experimental-badge-skill-bundle', '@deepseek-ai/dsh-subagent-codex', '@deepseek-ai/dsh-subagent-claude-code'])
+        .toEqual([team, '@acme/new-official', '@deepseek-ai/dsh-subagent-codex', '@deepseek-ai/dsh-subagent-claude-code'])
       expect(document.querySelector('[data-plugin-package="dsh-better-sidebar"]')).toBeNull()
       fireEvent.click(screen.getByRole('button', { name: en.openDetail.replace('{name}', team) }))
       fireEvent.click(screen.getByRole('button', { name: en.backToPackage.replace('{name}', en.moreTitle) }))
