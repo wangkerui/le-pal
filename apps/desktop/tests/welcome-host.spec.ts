@@ -43,9 +43,10 @@ function transport(preference?: string) {
       })
       value = { ns: payload.args.ns, revision: (payload.args.expectedRevision ?? 0) + 1 }
     } else if (method === 'llm/discoverModels') value = [
-      { id: 'deepseek-chat', name: 'DeepSeek Chat' },
-      { id: 'deepseek-reasoner' },
-      { id: 'deepseek-chat' },
+      { id: 'fast' },
+      { id: 'pro' },
+      { id: 'ultra' },
+      { id: 'pro' },
     ]
     else if (method === 'llm/listConfigurableProviders') value = [
       { settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'lepal'] },
@@ -98,12 +99,12 @@ describe('desktop welcome Web operations', () => {
       },
       {
         ns: 'llm-pi-ai',
-        ops: [{ op: 'set', path: ['providers', 'lepal', 'models'], value: [{ id: 'deepseek-chat', name: 'DeepSeek Chat' }, { id: 'deepseek-reasoner' }] }],
+        ops: [{ op: 'set', path: ['providers', 'lepal', 'models'], value: [{ id: 'fast' }, { id: 'pro' }, { id: 'ultra' }] }],
         expectedRevision: 4,
       },
       {
         ns: 'agent-default-model',
-        ops: [{ op: 'set', path: ['provider'], value: 'lepal' }, { op: 'set', path: ['model'], value: 'deepseek-chat' }],
+        ops: [{ op: 'set', path: ['provider'], value: 'lepal' }, { op: 'set', path: ['model'], value: 'ultra' }],
         expectedRevision: 2,
       },
     ])

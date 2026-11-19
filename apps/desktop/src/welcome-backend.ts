@@ -198,7 +198,8 @@ export function connectDesktopWelcome(
           current = await mutateSettings('llm-pi-ai',
             [{ op: 'set', path: ['providers', 'lepal', 'models'], value: models }],
             typeof current?.revision === 'number' ? current.revision : undefined) ?? current
-          const preferred = models.find(model => /chat/iu.test(model.id))?.id ?? models[0]?.id
+          const preferred = models.find(model => model.id.toLowerCase() === 'ultra')?.id
+            ?? models.find(model => /chat/iu.test(model.id))?.id ?? models[0]?.id
           const defaults: unknown = namespaces.find((item: unknown) => record(item) && item.ns === 'agent-default-model')
           if (preferred !== undefined) {
             await mutateSettings('agent-default-model', [
