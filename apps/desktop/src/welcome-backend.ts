@@ -14,6 +14,14 @@ export interface WelcomeState {
   readonly themePreference: 'light' | 'dark' | 'system'
 }
 
+/** Credentials the native welcome form writes before entering the workspace. */
+export interface WelcomeConnection {
+  /** LePal gateway API key. */
+  readonly apiKey: string
+  /** Model endpoint written to the built-in provider's settings. */
+  readonly baseUrl: string
+}
+
 /** Narrow operations available to the native welcome flow. */
 export interface DesktopWelcomeBackend {
   /** @returns the current Host policy; every read observes live configuration. */
@@ -26,10 +34,11 @@ export interface DesktopWelcomeBackend {
   /** @returns The saved UI language without account or provider requests. */
   readLocalePreference(): Promise<string | null>
   /**
-   * @param apiKey - User-entered official provider key.
+   * Store the LePal gateway credential and endpoint before entering the workspace.
+   * @param connection - user-entered key and model address.
    * @returns A safe write outcome without provider diagnostics.
    */
-  save(apiKey: string): Promise<{ ok: boolean }>
+  save(connection: WelcomeConnection): Promise<{ ok: boolean }>
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -69,15 +78,19 @@ export function connectDesktopWelcome(
     return envelope.result.value
   }
   const account = desktopAccountBackend(origin, invoke, cookie)
-  const settingsAndReference = async () => {
+  const lepalProvider = async () => {
     const settings = await invoke({ namespace: 'settings', method: 'describe', args: {} })
     if (!record(settings) || !Array.isArray(settings.namespaces)) throw new Error('desktop welcome: missing settings namespaces')
-    const official: unknown = settings.namespaces.find((item: unknown) => record(item) && item.ns === 'llm-deepseek')
-    if (official === undefined) return { settings: { namespaces: settings.namespaces }, ref: undefined }
-    if (!record(official) || !record(official.value) || typeof official.value.apiKeyEnv !== 'string') {
-      throw new Error('desktop welcome: missing official DeepSeek credential reference')
+    const piAi: unknown = settings.namespaces.find((item: unknown) => record(item) && item.ns === 'llm-pi-ai')
+    const namespaces = settings.namespaces
+    if (!record(piAi) || !record(piAi.value)) return { namespaces, ref: undefined, revision: undefined }
+    const providers = piAi.value.providers
+    const lepal = record(providers) && record(providers.lepal) ? providers.lepal : undefined
+    return {
+      namespaces,
+      ref: record(lepal) && typeof lepal.apiKeyEnv === 'string' ? lepal.apiKeyEnv : undefined,
+      revision: typeof piAi.revision === 'number' ? piAi.revision : undefined,
     }
-    return { settings: { namespaces: settings.namespaces }, ref: official.value.apiKeyEnv }
   }
   const localePreference = (namespaces: unknown[]): string | null => {
     const locale: unknown = namespaces.find((item: unknown) => record(item) && item.ns === 'locale')
@@ -96,10 +109,9 @@ export function connectDesktopWelcome(
     return 'system'
   }
   const read = async (): Promise<WelcomeState> => {
-    const { settings, ref } = await settingsAndReference()
+    const { namespaces, ref } = await lepalProvider()
     const providers = await invoke({ namespace: 'llm', method: 'listConfigurableProviders', args: {} })
     if (!Array.isArray(providers)) throw new Error('desktop welcome: invalid provider directory')
-    const namespaces = settings.namespaces
     const refs = providers.flatMap((provider: unknown) => {
       if (!record(provider) || typeof provider.settingsNs !== 'string' || !Array.isArray(provider.settingsPath)) {
         throw new Error('desktop welcome: invalid provider settings address')
@@ -143,12 +155,23 @@ export function connectDesktopWelcome(
       if (!record(settings) || !Array.isArray(settings.namespaces)) throw new Error('desktop welcome: missing settings namespaces')
       return localePreference(settings.namespaces)
     },
-    async save(apiKey) {
+    async save(connection) {
+      const apiKey = connection.apiKey
+      const baseUrl = connection.baseUrl.trim()
       if (!/^[\x21-\x7e]+$/.test(apiKey)) return { ok: false }
+      if (!/^https?:\/\/[^\s]+$/u.test(baseUrl)) return { ok: false }
       try {
-        const { ref } = await settingsAndReference()
+        const { ref, revision } = await lepalProvider()
         if (ref === undefined) return { ok: false }
         await invoke({ namespace: 'credentials', method: 'set', args: { ref, value: apiKey } })
+        await invoke({
+          namespace: 'settings', method: 'mutate',
+          args: {
+            ns: 'llm-pi-ai',
+            ops: [{ op: 'set', path: ['providers', 'lepal', 'baseURL'], value: baseUrl }],
+            ...(revision === undefined ? {} : { expectedRevision: revision }),
+          },
+        })
         return { ok: true }
       } catch {
         // Provider diagnostics may contain credentials; the native form owns failure copy.

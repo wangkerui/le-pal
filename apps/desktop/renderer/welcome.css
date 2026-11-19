@@ -283,6 +283,14 @@ body {
   width: 100%;
 }
 
+.key-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 18px;
+}
+
 /* Text inputs match :focus-visible after pointer focus too; their border carries focus. */
 .key-field input {
   display: block;

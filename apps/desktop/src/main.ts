@@ -1427,9 +1427,9 @@ async function main(): Promise<void> {
           }
           await clipboard.writeText(platformLoginUrl(state.attempt.authorizeUrl))
         },
-        saveApiKey: async (apiKey) => {
+        saveConnection: async (connection) => {
           if (backend.host === undefined || welcomeBackend === undefined) return { ok: false }
-          const saved = await welcomeBackend.save(apiKey)
+          const saved = await welcomeBackend.save(connection)
           if (!saved.ok) return saved
           await enterWorkspace()
           return { ok: true }

@@ -65,7 +65,7 @@ export async function openWelcomeWindow(locale: DesktopLocale, operations: Welco
     if (!active) return
     active = false
     for (const channel of [
-      WELCOME_IPC.analyticsEnabled, WELCOME_IPC.analytics, WELCOME_IPC.takeNotice, WELCOME_IPC.saveApiKey,
+      WELCOME_IPC.analyticsEnabled, WELCOME_IPC.analytics, WELCOME_IPC.takeNotice, WELCOME_IPC.saveConnection,
       WELCOME_IPC.skip, WELCOME_IPC.start, WELCOME_IPC.cancel, WELCOME_IPC.copyLink,
     ]) {
       ipcMain.removeHandler(channel)
@@ -93,10 +93,13 @@ export async function openWelcomeWindow(locale: DesktopLocale, operations: Welco
     } else throw new Error('desktop welcome: invalid analytics event')
   })
   ipcMain.handle(WELCOME_IPC.takeNotice, async (event) => { assertSender(event); return operations.takeNotice() })
-  ipcMain.handle(WELCOME_IPC.saveApiKey, async (event, value: unknown) => {
+  ipcMain.handle(WELCOME_IPC.saveConnection, async (event, value: unknown) => {
     assertSender(event)
-    if (typeof value !== 'string' || !/^[\x21-\x7e]+$/.test(value)) return { ok: false }
-    return operations.saveApiKey(value)
+    if (typeof value !== 'object' || value === null) return { ok: false }
+    const { apiKey, baseUrl } = value as { apiKey?: unknown; baseUrl?: unknown }
+    if (typeof apiKey !== 'string' || !/^[\x21-\x7e]+$/.test(apiKey)) return { ok: false }
+    if (typeof baseUrl !== 'string' || !/^https?:\/\/[^\s]+$/u.test(baseUrl)) return { ok: false }
+    return operations.saveConnection({ apiKey, baseUrl })
   })
   ipcMain.handle(WELCOME_IPC.skip, async (event) => {
     assertSender(event)

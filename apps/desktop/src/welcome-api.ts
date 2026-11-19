@@ -6,7 +6,7 @@ import type { DesktopLocale } from './locale.ts'
 
 /** Private native welcome channels, installed only while its window exists. */
 export const WELCOME_IPC = {
-  saveApiKey: 'dsh-welcome:save-api-key',
+  saveConnection: 'dsh-welcome:save-connection',
   analytics: 'dsh-welcome:analytics',
   analyticsEnabled: 'dsh-welcome:analytics-enabled',
   skip: 'dsh-welcome:skip',
@@ -16,6 +16,14 @@ export const WELCOME_IPC = {
   state: 'dsh-welcome:state',
   takeNotice: 'dsh-welcome:take-notice',
 } as const
+
+/** Credentials the native welcome form writes before entering the workspace. */
+export interface WelcomeConnection {
+  /** LePal gateway API key. */
+  readonly apiKey: string
+  /** Model endpoint for the built-in provider. */
+  readonly baseUrl: string
+}
 
 /** Credential writes return a safe outcome without exposing Host diagnostics. */
 export type WelcomeSaveResult = { readonly ok: true } | { readonly ok: false }
@@ -41,11 +49,11 @@ export interface WelcomeOperations {
   copySignInLink(id: SignInAttemptId): Promise<void>
 
   /**
-   * Store the official provider's key before entering the workspace.
-   * @param value - validated, trimmed API key.
+   * Store the LePal gateway credential and model address before entering the workspace.
+   * @param connection - validated, trimmed key and endpoint.
    * @returns whether the write completed, without private error details.
    */
-  saveApiKey(value: string): Promise<WelcomeSaveResult>
+  saveConnection(connection: WelcomeConnection): Promise<WelcomeSaveResult>
   /**
    * Enter the workspace without writing an onboarding-completion setting.
    * @returns completion after the workspace opens.

@@ -105,7 +105,7 @@ describe.skipIf(!existsSync(builtHost))('built Desktop welcome flow', () => {
       await restart()
       expect(await status()).toMatchObject({ hasApiKey: false, localePreference: 'zh' })
       expect(fingerprint()).toBe(before)
-      expect(await backend!.save('sk-local-onboarding-test')).toEqual({ ok: true })
+      expect(await backend!.save({ apiKey: 'sk-local-onboarding-test', baseUrl: 'http://vibegw.platform.cmbchina.cn/v1' })).toEqual({ ok: true })
       expect(await status()).toMatchObject({ hasApiKey: true, localePreference: 'zh' })
       await restart()
       expect(await status()).toMatchObject({ hasApiKey: true })

@@ -45,7 +45,7 @@ const operations = {
   startSignIn: async () => ({ links: { usageUrl: 'http://localhost/usage', topUpUrl: 'http://localhost/top_up' }, status: 'signed-out' as const, attempt: null }),
   cancelSignIn: async () => ({ links: { usageUrl: 'http://localhost/usage', topUpUrl: 'http://localhost/top_up' }, status: 'signed-out' as const, attempt: null }),
   copySignInLink: async () => undefined,
-  saveApiKey: () => Promise.resolve({ ok: true as const }),
+  saveConnection: () => Promise.resolve({ ok: true as const }),
   skip: () => Promise.resolve(),
 }
 
@@ -114,23 +114,26 @@ describe('desktop welcome window', () => {
   it('accepts actions only from its own top frame and removes handlers on close', async () => {
     const window = createWindow()
     electron.create.mockReturnValue(window)
-    const saveApiKey = vi.fn(operations.saveApiKey)
+    const saveConnection = vi.fn(operations.saveConnection)
     const skip = vi.fn(operations.skip)
     const copySignInLink = vi.fn(operations.copySignInLink)
     const takeNotice = vi.fn(async () => 'session-expired' as const)
-    await openWelcomeWindow(resolveDesktopLocale('en'), { ...operations, saveApiKey, skip, copySignInLink, takeNotice })
+    await openWelcomeWindow(resolveDesktopLocale('en'), { ...operations, saveConnection, skip, copySignInLink, takeNotice })
     const own = { sender: window.webContents, senderFrame: window.webContents.mainFrame }
     const take = electron.handlers.get(WELCOME_IPC.takeNotice)!
     await expect(take({ ...own, senderFrame: {} })).rejects.toThrow('unowned frame')
     expect(takeNotice).not.toHaveBeenCalled()
     expect(await take(own)).toBe('session-expired')
     expect(takeNotice).toHaveBeenCalledOnce()
-    const save = electron.handlers.get(WELCOME_IPC.saveApiKey)!
-    await expect(save({ sender: {}, senderFrame: {} }, 'sk-test')).rejects.toThrow('unowned frame')
-    await expect(save({ ...own, senderFrame: {} }, 'sk-test')).rejects.toThrow('unowned frame')
-    expect(await save(own, 'bad key')).toEqual({ ok: false })
-    expect(saveApiKey).not.toHaveBeenCalled()
-    expect(await save(own, 'sk-test')).toEqual({ ok: true })
+    const save = electron.handlers.get(WELCOME_IPC.saveConnection)!
+    const connection = { apiKey: 'sk-test', baseUrl: 'https://models.example.com/v1' }
+    await expect(save({ sender: {}, senderFrame: {} }, connection)).rejects.toThrow('unowned frame')
+    await expect(save({ ...own, senderFrame: {} }, connection)).rejects.toThrow('unowned frame')
+    expect(await save(own, { apiKey: 'bad key', baseUrl: connection.baseUrl })).toEqual({ ok: false })
+    expect(await save(own, { apiKey: connection.apiKey, baseUrl: 'vibegw' })).toEqual({ ok: false })
+    expect(saveConnection).not.toHaveBeenCalled()
+    expect(await save(own, connection)).toEqual({ ok: true })
+    expect(saveConnection).toHaveBeenCalledWith(connection)
     await electron.handlers.get(WELCOME_IPC.skip)!(own)
     expect(skip).toHaveBeenCalledOnce()
     const copy = electron.handlers.get(WELCOME_IPC.copyLink)!

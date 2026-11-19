@@ -90,8 +90,8 @@
     - id: agent-default-model
       name: '@deepseek-ai/dsh-agent-default-model'
       config:
-        provider: deepseek-official
-        model: deepseek-flash
+        provider: lepal
+        model: deepseek-chat
 
     - id: jobs
       name: '@deepseek-ai/dsh-jobs-local'
@@ -138,6 +138,31 @@
     # document.
     - id: llm-pi-ai
       name: '@deepseek-ai/dsh-llm-pi-ai'
+      config:
+        providers:
+          # The built-in LePal model provider. The gateway authenticates with the
+          # credential the first-run setup stores under $LEPAL_API_KEY.
+          lepal:
+            displayName: 'LePal'
+            api: openai-completions
+            baseURL: 'http://vibegw.platform.cmbchina.cn/v1'
+            apiKeyEnv: 'LEPAL_API_KEY'
+            models:
+              - id: deepseek-chat
+                name: 'DeepSeek Chat'
+                contextWindow: 131072
+                maxTokens: 8192
+                input: [text]
+              - id: deepseek-reasoner
+                name: 'DeepSeek Reasoner'
+                contextWindow: 131072
+                maxTokens: 65536
+                input: [text]
+                reasoningEfforts:
+                  off: null
+                  low: low
+                  medium: medium
+                  high: high
 
     - id: session-persistence-jsonl
       name: '@deepseek-ai/dsh-session-persistence-jsonl'
@@ -550,12 +575,13 @@
     - id: fs-sandbox
       name: '@deepseek-ai/dsh-fs-sandbox'
 
-    # The native DeepSeek adapter. No key or endpoint is inlined: both resolve per
-    # request from the `llm-deepseek:` settings section over this entry, with the
-    # key coming from the credential store below. Thinking defaults are a deployment
-    # choice.
+    # This deployment serves its models through the LePal gateway, which speaks
+    # the OpenAI-compatible protocol; the native DeepSeek adapter and its account
+    # sign-in stay out of the composition.
     - id: llm-deepseek
       name: '@deepseek-ai/dsh-llm-deepseek-api-key'
+      disabled: true
 
     - id: llm-deepseek-account
       name: '@deepseek-ai/dsh-llm-deepseek-account'
+      disabled: true
