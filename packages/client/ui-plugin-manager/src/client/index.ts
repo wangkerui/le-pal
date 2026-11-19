@@ -29,7 +29,6 @@ import { PluginManagerPage } from './PluginManagerPage.tsx'
 import { createPluginHeaderRef } from './header-scroll.ts'
 import { PluginRefreshToast, type PluginRefreshToastFace } from './PluginRefreshToast.tsx'
 import { PluginsPanelIcon } from './PluginsPanelIcon.tsx'
-import { PluginsSettingsLink, type PluginsSettingsLinkInjected } from './PluginsSettingsLink.tsx'
 import { configLedgerSource } from './config-ledger.ts'
 import { tabLedgerSource } from './tab-ledger.ts'
 import { PluginManagerController } from './manager-store.ts'
@@ -172,14 +171,6 @@ export function apply(ctx: ClientContext): void {
         },
       })
       yield () => { void disposeNavigation() }
-      // Settings lists one entry that leads here.
-      yield ctx.slots.inject('settings.section', () => ctx.slots.register({
-        name: 'settings.section',
-        id: PANEL_ID,
-        order: 15,
-        label: () => t('settingsEntry'),
-        inject: (): PluginsSettingsLinkInjected => ({ openPlugins: openList }),
-      }, PluginsSettingsLink))
     })
     yield ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
       name: 'sidebar.panellist',

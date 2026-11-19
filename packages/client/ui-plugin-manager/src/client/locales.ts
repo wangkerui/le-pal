@@ -8,7 +8,6 @@ export const INSTALL_PATH_EXAMPLE = '/Users/name/my-plugin'
 /** Simplified Chinese dictionary and key source of truth. */
 export const zh = {
   panel: '插件',
-  settingsEntry: '插件管理',
   clientSyncing: '正在同步本页面的插件…',
   clientSyncFailed: '本页面的插件未能完成同步；服务端的启用状态保持不变。',
   clientSyncRetry: '重试本页面同步',
@@ -312,7 +311,6 @@ export type PluginManagerLocaleKey = keyof typeof zh
 /** English dictionary checked against the Chinese key set. */
 export const en = {
   panel: 'Plugins',
-  settingsEntry: 'Plugins',
   clientSyncing: 'Syncing plugins on this page…',
   clientSyncFailed: 'Some plugins could not sync on this page. Host enablement is unchanged.',
   clientSyncRetry: 'Retry this page',
@@ -614,7 +612,6 @@ export const en = {
 export const ja = {
   'reasonUnsupportedPlatform': 'このプラグインはLePalを実行しているホストOSに対応していません。',
   'panel': 'プラグイン',
-  'settingsEntry': 'プラグイン管理',
   'clientSyncing': 'このページでプラグインを同期中…',
   'clientSyncFailed': '一部のプラグインをこのページで同期できませんでした。ホスト側の有効化状態は変更されていません。',
   'clientSyncRetry': 'このページを再試行',
@@ -915,7 +912,6 @@ export const ja = {
 export const es = {
   reasonUnsupportedPlatform: 'Este complemento no es compatible con el sistema operativo que ejecuta LePal.',
   panel: 'Complementos',
-  settingsEntry: 'Complementos',
   clientSyncing: 'Sincronizando complementos en esta página…',
   clientSyncFailed: 'Algunos complementos no se pudieron sincronizar en esta página. La habilitación del host no ha cambiado.',
   clientSyncRetry: 'Reintentar esta página',
@@ -1216,7 +1212,6 @@ export const es = {
 export const fr = {
   reasonUnsupportedPlatform: 'Ce plugin ne prend pas en charge le système d’exploitation sur lequel LePal s’exécute.',
   panel: 'Plugins',
-  settingsEntry: 'Plugins',
   clientSyncing: 'Synchronisation des plugins sur cette page…',
   clientSyncFailed: "Certains plugins n'ont pas pu se synchroniser sur cette page. L'activation de l'hôte est inchangée.",
   clientSyncRetry: 'Réessayez cette page',
@@ -1517,7 +1512,6 @@ export const fr = {
 export const de = {
   reasonUnsupportedPlatform: 'Dieses Plugin unterstützt das Betriebssystem, auf dem LePal läuft, nicht.',
   panel: 'Plugins',
-  settingsEntry: 'Plugins',
   clientSyncing: 'Plugins auf dieser Seite werden synchronisiert…',
   clientSyncFailed: 'Einige Plugins konnten auf dieser Seite nicht synchronisiert werden. Die Host-Aktivierung bleibt unverändert.',
   clientSyncRetry: 'Versuchen Sie es erneut mit dieser Seite',
@@ -1818,7 +1812,6 @@ export const de = {
 export const ru = {
   reasonUnsupportedPlatform: 'Этот плагин не поддерживает операционную систему, в которой работает LePal.',
   panel: 'Плагины',
-  settingsEntry: 'Плагины',
   clientSyncing: 'Синхронизация плагинов на этой странице…',
   clientSyncFailed: 'Некоторые плагины не смогли синхронизироваться на этой странице. Включение хоста не изменилось.',
   clientSyncRetry: 'Повторить эту страницу',
@@ -2119,7 +2112,6 @@ export const ru = {
 export const pt = {
   reasonUnsupportedPlatform: 'Este plugin não oferece suporte ao sistema operacional em que o LePal está sendo executado.',
   panel: 'Plug-ins',
-  settingsEntry: 'Plug-ins',
   clientSyncing: 'Sincronizando plug-ins nesta página…',
   clientSyncFailed: 'Alguns plug-ins não puderam ser sincronizados nesta página. A ativação do host permanece inalterada.',
   clientSyncRetry: 'Tente esta página novamente',

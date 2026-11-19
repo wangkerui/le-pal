@@ -8,16 +8,15 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ILayout, PanelInfo } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
-import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { allowAllAccess, StaticRemoteAccess, TestRemote, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
 import * as settings from '@deepseek-ai/dsh-client-ui-settings/client'
+import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { apply, inject, NS, PANEL_ID } from '../src/client/index.ts'
 import { PluginManagerPage } from '../src/client/PluginManagerPage.tsx'
 import { PluginRefreshToast, type PluginRefreshToastFace } from '../src/client/PluginRefreshToast.tsx'
 import { PluginsPanelIcon } from '../src/client/PluginsPanelIcon.tsx'
 import type { PluginManagerFace } from '../src/client/manager-store.ts'
 import type { createNavigationStore } from '../src/client/navigation-store.ts'
-import type { PluginsSettingsLinkInjected } from '../src/client/PluginsSettingsLink.tsx'
 import type { ClientSyncFace } from '../src/client/PluginManagerPage.tsx'
 
 usePinnedBrowserLanguages('zh-CN')
@@ -165,7 +164,7 @@ describe('ui-plugin-manager browser plugin', () => {
     expect(b.list).not.toHaveBeenCalled()
   })
 
-  it('keeps a Settings entry that opens the Plugins list while the page is registered', async () => {
+  it('registers the Plugins page and reads its client synchronization from the module system', async () => {
     const b = await bench()
     const removeRoot = b.slots.register({
       name: 'root',
@@ -173,19 +172,9 @@ describe('ui-plugin-manager browser plugin', () => {
         'main': { kind: 'keyed', scope: 'root' },
         'shell.overlay': { kind: 'list', scope: 'root' },
         'sidebar.panellist': { kind: 'list', scope: 'root' },
-        'settings.section': { kind: 'list', scope: 'root' },
       },
     } as never, () => null)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
-    const link = b.slots.entries('settings.section')[0]!
-    expect(link.options).toMatchObject({ id: PANEL_ID, order: 15 })
-    expect(resolveSlotLabel(link.options.label)).toBe('插件管理')
-    const navigation = (b.slots.entries('main')[0]!.store as ReturnType<typeof createNavigationStore>).create()
-    navigation.actions.setView({ kind: 'more' })
-    const linkInjected: object = link.inject!()
-    ;(linkInjected as PluginsSettingsLinkInjected).openPlugins()
-    expect(b.panelInfo.getSnapshot().activePanelId).toBe(PANEL_ID)
-    expect(navigation.getSnapshot()).toEqual({ tab: 'installed', view: { kind: 'list' } })
     // The page reads this page's client synchronization from the module system and retries through it.
     const pageInjected: object = b.slots.entries('main')[0]!.inject!()
     const sync = pageInjected as ClientSyncFace
@@ -197,7 +186,6 @@ describe('ui-plugin-manager browser plugin', () => {
     sync.retryClient()
     await vi.waitFor(() => { expect(b.retryClient).toHaveBeenCalledTimes(2) })
     removeRoot()
-    expect(b.slots.entries('settings.section')).toEqual([])
     logged.mockRestore()
   })
 

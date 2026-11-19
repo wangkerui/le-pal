@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/client/ui-lepal-brand/README.md
+/:
+  en: bf2badb7092eb044
+  zh: c5b51af6a58436eb
+/deepseek-ai-dsh-client-ui-lepal-brand:
+  en: 979358e9938ec4b8
+  zh: a0183c2a1a2315ff
+/deepseek-ai-dsh-client-ui-lepal-brand/summary:
+  en: f2134c4b1f7dbb2f
+  zh: ba1d6c8eebaaa11a
+/deepseek-ai-dsh-client-ui-lepal-brand/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: fcca19fa93b1c38b
+/deepseek-ai-dsh-client-ui-lepal-brand/use-this-package:
+  en: 5ccbc09729aa5b20
+  zh: fa817d7cdf4f49a4
+/deepseek-ai-dsh-client-ui-lepal-brand/use-this-package/when-to-choose-it:
+  en: 28d9d5d61ee72533
+  zh: 0348b40906d57481
+/deepseek-ai-dsh-client-ui-lepal-brand/use-this-package/minimal-configuration:
+  en: 4eff999be7fa450e
+  zh: 33725552e196db49
+/deepseek-ai-dsh-client-ui-lepal-brand/understand-the-implementation:
+  en: fde904f66e4100e6
+  zh: 638a3e0a1c2675fd
+/deepseek-ai-dsh-client-ui-lepal-brand/further-exploration:
+  en: 33d80e65c6474f06
+  zh: 2693fb75b4cb0433
+/deepseek-ai-dsh-client-ui-lepal-brand/model-experience:
+  en: 53c5f96e0a481a66
+  zh: 9878dbb176be7e4f
+/deepseek-ai-dsh-client-ui-lepal-brand/model-experience/kv-cache-effect:
+  en: f8d850bbe154a6e3
+  zh: 91f8f319040e47dc
+/deepseek-ai-dsh-client-ui-lepal-brand/known-limitations-and-deferred-work:
+  en: 8b1c2c0c51d300d0
+  zh: 820b90eea2dba7d7
+/deepseek-ai-dsh-client-ui-lepal-brand/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914
