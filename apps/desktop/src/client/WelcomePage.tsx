@@ -123,7 +123,7 @@ export function Welcome({ api }: { api: WelcomeApi }) {
         </div>
       </form>
       <div id="key-actions" className="actions">
-        <button id="save-key" className="primary" type="submit" form="key-form" disabled={busy || draft.trim() === ''}>{m.welcomeKeySave}</button>
+        <button id="save-key" className="primary" type="submit" form="key-form" disabled={busy || draft.trim() === ''}>{busy ? m.welcomeKeySaving : m.welcomeKeySave}</button>
         <button id="skip-key" className="secondary" type="button" disabled={busy} onClick={() => { void skip() }}>{m.welcomeKeyLater}</button>
       </div>
     </main>

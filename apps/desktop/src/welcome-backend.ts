@@ -92,6 +92,31 @@ export function connectDesktopWelcome(
       revision: typeof piAi.revision === 'number' ? piAi.revision : undefined,
     }
   }
+  /** Write configuration paths and return the namespace view the Host answered with. */
+  const mutateSettings = async (ns: string, ops: unknown[], expectedRevision?: number): Promise<Record<string, unknown> | undefined> => {
+    const value = await invoke({
+      namespace: 'settings', method: 'mutate',
+      args: { ns, ops, ...(expectedRevision === undefined ? {} : { expectedRevision }) },
+    })
+    if (!record(value)) return undefined
+    return typeof value.revision === 'number' ? value : undefined
+  }
+  /** Ask the gateway which models it serves; duplicates and malformed entries are dropped. */
+  const discoverModels = async (baseUrl: string): Promise<{ id: string; name?: string }[]> => {
+    const value = await invoke({
+      namespace: 'llm', method: 'discoverModels',
+      args: { settingsNs: 'llm-pi-ai', request: { provider: 'lepal', baseURL: baseUrl } },
+    }, AbortSignal.timeout(20_000))
+    if (!Array.isArray(value)) return []
+    const seen = new Set<string>()
+    const models: { id: string; name?: string }[] = []
+    for (const item of value) {
+      if (!record(item) || typeof item.id !== 'string' || item.id.length === 0 || seen.has(item.id)) continue
+      seen.add(item.id)
+      models.push(typeof item.name === 'string' && item.name.length > 0 ? { id: item.id, name: item.name } : { id: item.id })
+    }
+    return models
+  }
   const localePreference = (namespaces: unknown[]): string | null => {
     const locale: unknown = namespaces.find((item: unknown) => record(item) && item.ns === 'locale')
     if (!record(locale) || !record(locale.value)
@@ -161,17 +186,27 @@ export function connectDesktopWelcome(
       if (!/^[\x21-\x7e]+$/.test(apiKey)) return { ok: false }
       if (!/^https?:\/\/[^\s]+$/u.test(baseUrl)) return { ok: false }
       try {
-        const { ref, revision } = await lepalProvider()
+        const { namespaces, ref, revision } = await lepalProvider()
         if (ref === undefined) return { ok: false }
         await invoke({ namespace: 'credentials', method: 'set', args: { ref, value: apiKey } })
-        await invoke({
-          namespace: 'settings', method: 'mutate',
-          args: {
-            ns: 'llm-pi-ai',
-            ops: [{ op: 'set', path: ['providers', 'lepal', 'baseURL'], value: baseUrl }],
-            ...(revision === undefined ? {} : { expectedRevision: revision }),
-          },
-        })
+        let current = await mutateSettings('llm-pi-ai',
+          [{ op: 'set', path: ['providers', 'lepal', 'baseURL'], value: baseUrl }], revision)
+        // Discovery is best effort: a gateway without a listing keeps the built-in catalog.
+        let models: { id: string; name?: string }[] = []
+        try { models = await discoverModels(baseUrl) } catch { models = [] }
+        if (models.length > 0) {
+          current = await mutateSettings('llm-pi-ai',
+            [{ op: 'set', path: ['providers', 'lepal', 'models'], value: models }],
+            typeof current?.revision === 'number' ? current.revision : undefined) ?? current
+          const preferred = models.find(model => /chat/iu.test(model.id))?.id ?? models[0]?.id
+          const defaults: unknown = namespaces.find((item: unknown) => record(item) && item.ns === 'agent-default-model')
+          if (preferred !== undefined) {
+            await mutateSettings('agent-default-model', [
+              { op: 'set', path: ['provider'], value: 'lepal' },
+              { op: 'set', path: ['model'], value: preferred },
+            ], record(defaults) && typeof defaults.revision === 'number' ? defaults.revision : undefined)
+          }
+        }
         return { ok: true }
       } catch {
         // Provider diagnostics may contain credentials; the native form owns failure copy.

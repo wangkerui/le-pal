@@ -17,6 +17,7 @@ function transport(preference?: string) {
       },
     },
     { ns: 'locale', value: preference === undefined ? {} : { preference } },
+    { ns: 'agent-default-model', revision: 2, value: { provider: 'lepal', model: 'deepseek-chat' } },
   ]
   const send = vi.fn<NonNullable<Parameters<typeof connectDesktopWelcome>[2]>>(async (_input, init) => {
     const { rpcId, method, payload } = JSON.parse(init!.body as string) as {
@@ -40,8 +41,13 @@ function transport(preference?: string) {
         ops: payload.args.ops,
         ...(payload.args.expectedRevision === undefined ? {} : { expectedRevision: payload.args.expectedRevision }),
       })
-      value = undefined
-    } else if (method === 'llm/listConfigurableProviders') value = [
+      value = { ns: payload.args.ns, revision: (payload.args.expectedRevision ?? 0) + 1 }
+    } else if (method === 'llm/discoverModels') value = [
+      { id: 'deepseek-chat', name: 'DeepSeek Chat' },
+      { id: 'deepseek-reasoner' },
+      { id: 'deepseek-chat' },
+    ]
+    else if (method === 'llm/listConfigurableProviders') value = [
       { settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'lepal'] },
       { settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'other'] },
     ]
@@ -84,11 +90,23 @@ describe('desktop welcome Web operations', () => {
     expect(await backend.analyticsEnabled()).toBe(true)
     expect(await backend.save({ apiKey: 'sk-example', baseUrl: 'https://models.example.com/v1' })).toEqual({ ok: true })
     expect(host.keys.get('LEPAL_API_KEY')).toBe('sk-example')
-    expect(host.mutations).toEqual([{
-      ns: 'llm-pi-ai',
-      ops: [{ op: 'set', path: ['providers', 'lepal', 'baseURL'], value: 'https://models.example.com/v1' }],
-      expectedRevision: 3,
-    }])
+    expect(host.mutations).toEqual([
+      {
+        ns: 'llm-pi-ai',
+        ops: [{ op: 'set', path: ['providers', 'lepal', 'baseURL'], value: 'https://models.example.com/v1' }],
+        expectedRevision: 3,
+      },
+      {
+        ns: 'llm-pi-ai',
+        ops: [{ op: 'set', path: ['providers', 'lepal', 'models'], value: [{ id: 'deepseek-chat', name: 'DeepSeek Chat' }, { id: 'deepseek-reasoner' }] }],
+        expectedRevision: 4,
+      },
+      {
+        ns: 'agent-default-model',
+        ops: [{ op: 'set', path: ['provider'], value: 'lepal' }, { op: 'set', path: ['model'], value: 'deepseek-chat' }],
+        expectedRevision: 2,
+      },
+    ])
     expect(await backend.read()).toEqual({ loggedIn: false, hasApiKey: true, writable: true, localePreference: null, themePreference: 'system' })
     for (const [input, init] of host.send.mock.calls) {
       expect(input).toMatch(/^http:\/\/127\.0\.0\.1:19387\/api\//u)
