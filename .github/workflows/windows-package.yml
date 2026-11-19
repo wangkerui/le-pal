@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       runner:
-        description: '运行器标签'
+        description: 'GitHub 托管 windows-latest'
         type: string
-        default: dsh-win-package-trial
+        default: windows-latest
         required: true
       source_ref:
         description: '打包源码：test 支持仓库内分支或 dsh-v* tag；production 仅支持 master 或 dsh-v* tag；源码须包含 CI 适配脚本'
