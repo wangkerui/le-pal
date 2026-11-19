@@ -3,6 +3,11 @@ name: Package Desktop · Windows · x64
 on:
   workflow_dispatch:
     inputs:
+      runner:
+        description: '运行器标签'
+        type: string
+        default: dsh-win-package-trial
+        required: true
       source_ref:
         description: '打包源码：test 支持仓库内分支或 dsh-v* tag；production 仅支持 master 或 dsh-v* tag；源码须包含 CI 适配脚本'
         type: string
@@ -70,7 +75,7 @@ jobs:
       attempt: ${{ steps.retained.outputs.attempt }}
       version: ${{ steps.settings.outputs.version }}
       mode: ${{ steps.settings.outputs.mode }}
-    runs-on: dsh-win-package-trial
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 120
     defaults:
       run:
