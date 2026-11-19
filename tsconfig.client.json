@@ -156,8 +156,6 @@
     { "path": "./packages/experimental/cua/tsconfig.client.json" },
     { "path": "./packages/experimental/timeline/tsconfig.client.json" },
     { "path": "./packages/client/ui-settings-session-log" },
-    { "path": "./packages/client/ui-settings-plugins" },
-    { "path": "./packages/client/ui-settings-plugin-inventory" },
     { "path": "./packages/client/ui-settings-subagent" },
     { "path": "./packages/client/ui-settings-web-search" },
     { "path": "./packages/client/ui-user-questions" },

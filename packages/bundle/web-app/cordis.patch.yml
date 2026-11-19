@@ -345,16 +345,6 @@
     - id: ui-settings-general
       name: '@deepseek-ai/dsh-client-ui-settings-general'
 
-    # Read-only Plugin list tab in the Settings Plugins section; the built-in
-    # bundles the sidebar page leaves out are inspected here.
-    - id: ui-settings-plugin-inventory
-      name: '@deepseek-ai/dsh-client-ui-settings-plugin-inventory'
-
-    # Built-in plugins settings section: the Settings navigation entry and the tab
-    # chrome the inventory tab registers into.
-    - id: ui-settings-plugins
-      name: '@deepseek-ai/dsh-client-ui-settings-plugins'
-
     - id: ui-settings-models
       name: '@deepseek-ai/dsh-client-ui-settings-models'
 
