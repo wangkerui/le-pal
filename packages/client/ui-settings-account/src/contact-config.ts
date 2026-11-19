@@ -10,7 +10,7 @@ export interface ContactConfig {
 }
 /** Validate public questionnaire options. */
 export const ContactConfigFields = {
-  contactFormUrl: z.string().pattern(/^https:\/\/[^/\s]+\//).default('https://trtgsjkv6r.feishu.cn/share/base/form/shrcnlCoGElW7MQznGy9r3YYXcg?hide_uid=1&hide_device_info=1&hide_harness_version=1'),
+  contactFormUrl: z.string().pattern(/^https:\/\/[^/\s]+\//).default('https://infocol.paas.cmbchina.com/web/collectionDown.html?colId=0ffd5926-5bb7-44f5-aa20-40f50cf6adb3'),
   contactSource: z.string().default(''),
 }
 /** Validate public questionnaire options. */

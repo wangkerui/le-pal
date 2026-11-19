@@ -9,12 +9,13 @@ it('prefills the available support context and hides every context field', () =>
     uid: 'account-user' as AccountUserId, version: '1.2.3',
     deviceInfo: 'Mozilla/5.0 (Macintosh) Harness/1.2.3', width: 1512, height: 982, pixelRatio: 2,
   }))
-  expect(url.origin).toBe('https://trtgsjkv6r.feishu.cn')
-  expect(url.pathname).toBe('/share/base/form/shrcnlCoGElW7MQznGy9r3YYXcg')
+  expect(url.origin).toBe('https://infocol.paas.cmbchina.com')
+  expect(url.pathname).toBe('/web/collectionDown.html')
   expect(Object.fromEntries(new URL(ContactConfig({}).contactFormUrl).searchParams)).toEqual({
-    hide_uid: '1', hide_device_info: '1', hide_harness_version: '1',
+    colId: '0ffd5926-5bb7-44f5-aa20-40f50cf6adb3',
   })
   expect(Object.fromEntries(url.searchParams)).toEqual({
+    colId: '0ffd5926-5bb7-44f5-aa20-40f50cf6adb3',
     hide_uid: '1', prefill_uid: 'account-user',
     hide_source: '1', prefill_source: 'app_harness',
     hide_harness_version: '1', prefill_harness_version: '1.2.3',
