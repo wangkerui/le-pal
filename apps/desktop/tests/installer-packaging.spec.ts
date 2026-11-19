@@ -2,6 +2,7 @@ import { readInstallerLocales } from '../scripts/installer-locales.mjs'
 import { tmpdir } from 'node:os'
 import { readFileSync } from 'node:fs'
 import { Arch, Platform } from 'electron-builder'
+import sharp from 'sharp'
 import { AppInfo, Packager } from 'app-builder-lib'
 import { expandMacro } from 'app-builder-lib/out/util/macroExpander.js'
 import { describe, expect, it, vi } from 'vitest'
@@ -18,6 +19,46 @@ vi.mock('node:fs/promises', async importOriginal => ({
 }))
 
 describe('installer preparation preserves application dependencies', () => {
+  it('uses centered LePal-only artwork in each Windows installer banner', async () => {
+    for (const [name, scale, dark] of [
+      ['brand.png', 1, false],
+      ['brand-dark.png', 1, true],
+      ['brand-2x.png', 2, false],
+      ['brand-dark-2x.png', 2, true],
+    ] as const) {
+      const path = new URL(`../installer/assets/${name}`, import.meta.url)
+      const { data, info } = await sharp(readFileSync(path)).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+      let left = info.width
+      let right = -1
+      let firstRow = info.height
+      let lastRow = -1
+      let brightness = 0
+      let visiblePixels = 0
+      for (let y = 0; y < info.height; y++) {
+        for (let x = 0; x < info.width; x++) {
+          const offset = (y * info.width + x) * info.channels
+          if (data[offset + 3] === 0) continue
+          left = Math.min(left, x)
+          right = Math.max(right, x)
+          firstRow = Math.min(firstRow, y)
+          lastRow = Math.max(lastRow, y)
+          brightness += data[offset]! + data[offset + 1]! + data[offset + 2]!
+          visiblePixels++
+        }
+      }
+      expect((right - left + 1) / info.width).toBeGreaterThan(0.19)
+      expect((right - left + 1) / info.width).toBeLessThan(0.21)
+      expect(Math.abs((left + right + 1) / (2 * info.width) - 0.5)).toBeLessThan(0.01)
+      expect((lastRow - firstRow + 1) / info.height).toBeGreaterThan(0.18)
+      expect((lastRow - firstRow + 1) / info.height).toBeLessThan(0.22)
+      expect(Math.abs((firstRow + lastRow + 1) / (2 * info.height) - 0.5)).toBeLessThan(0.01)
+      expect(brightness / (visiblePixels * 3)).toBeGreaterThan(dark ? 200 : 0)
+      if (!dark) expect(brightness / (visiblePixels * 3)).toBeLessThan(80)
+      expect(info.width).toBe(600 * scale)
+      expect(info.height).toBe(196 * scale)
+    }
+  })
+
   it.each(['win32', 'darwin'] as const)('rejects a missing production policy before signing on %s', async (platform) => {
     const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
     expect(() => createElectronBuilderConfig({ DSH_DESKTOP_APP_ID: 'com.example.installer',
