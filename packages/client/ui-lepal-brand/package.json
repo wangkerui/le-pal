@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-lepal-brand",
   "description": "LePal brand occupants for the sidebar and home hero, with the LePal language pack",
-  "version": "0.2.2-rc.4",
+  "version": "0.2.2-rc.5",
   "publishConfig": {
     "access": "public"
   },
