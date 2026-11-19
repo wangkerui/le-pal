@@ -18,6 +18,9 @@ overrides:
   'extract-zip>yauzl': '3.4.0'
   '@deepseek-ai/cosmokit': 'link:vendor/cosmokit'
   '@deepseek-ai/schemastery': 'link:vendor/schemastery'
+  # The community skill explorer peers on the released harness; link the workspace copy
+  # so the install does not fetch a second harness beside the workspace packages.
+  '@deepseek-ai/dsh': 'workspace:*'
 
 peerDependencyRules:
   allowedVersions:

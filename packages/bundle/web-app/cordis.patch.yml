@@ -379,6 +379,11 @@
     - id: ui-lepal-brand
       name: '@deepseek-ai/dsh-client-ui-lepal-brand'
 
+    # Visual skill and tool explorer contributed by the community package; it
+    # ships in the roster so every profile gets it without a Plugins install.
+    - id: ui-skill-explorer
+      name: '@linxin666/dsh-client-ui-skill-explorer'
+
     - id: ui-attachment
       name: '@deepseek-ai/dsh-client-ui-attachment'
 

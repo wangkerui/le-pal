@@ -8,6 +8,7 @@ overrides:
   extract-zip>yauzl: 3.4.0
   '@deepseek-ai/cosmokit': link:vendor/cosmokit
   '@deepseek-ai/schemastery': link:vendor/schemastery
+  '@deepseek-ai/dsh': workspace:*
 
 patchedDependencies:
   '@botiverse/oar@0.67.0': 65de2ca1966421e30893d8d4fed6a3d88e4247e131e7575fe791246e594538d6
@@ -3554,6 +3555,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
+      '@linxin666/dsh-client-ui-skill-explorer':
+        specifier: 0.4.19
+        version: 0.4.19(react@18.3.1)
       commander:
         specifier: ^15.0.0
         version: 15.0.0
@@ -22471,6 +22475,12 @@ packages:
       typescript:
         optional: true
 
+  '@linxin666/dsh-client-ui-skill-explorer@0.4.19':
+    resolution: {integrity: sha512-LMk5eox2NyGuHiAXOa6i5VItkaIWEWuEzfiIMA9NWTRBSr7Ll5qXWl3WM9FUJV9qH2aOqu8+++Vbu0FeEyPahg==}
+    peerDependencies:
+      '@deepseek-ai/dsh': workspace:*
+      react: ^18.2.0
+
   '@malept/cross-spawn-promise@2.0.0':
     resolution: {integrity: sha512-1DpKU0Z5ThltBwjNySMC14g0CkbyhCaz9FkhxqNsZI6uAPJXFS8cMXlBKo26FJ8ZuW6S9GCMcR9IO5k2X5/9Fg==}
     engines: {node: '>= 12.13.0'}
@@ -30155,6 +30165,10 @@ snapshots:
       lexical: 0.49.0(patch_hash=54c4413db208cf234cb68c6a837f2523d3b319aa17911f1da385af08362e1356)(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
+
+  '@linxin666/dsh-client-ui-skill-explorer@0.4.19(react@18.3.1)':
+    dependencies:
+      react: 18.3.1
 
   '@malept/cross-spawn-promise@2.0.0':
     dependencies:
