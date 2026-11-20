@@ -92,6 +92,7 @@ env:
 jobs:
   package:
     name: windows x64 / unsigned installer
+    environment: WEBDAV_USERNAME
     runs-on: ${{ inputs.runner }}
     # The packaging sequence builds the whole repository, packs the runtime,
     # then runs electron-builder and a packaged-runtime smoke test. A hosted
