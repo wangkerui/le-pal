@@ -10,8 +10,8 @@ name: Build Desktop · Windows · GitHub-hosted · unsigned
 # Unsigned builds are internal debugging artifacts only: never publish them to
 # test/production and never serve them to the updater ([packaging guide](../../apps/desktop/packaging/README.md)).
 #
-# No COS upload, no release tag, no retained package inventory: the job stops at
-# the Actions artifact.
+# No COS upload, release tag, or retained package inventory: the Actions
+# artifact is the deliverable; an optional WebDAV mirror is best-effort.
 
 on:
   workflow_dispatch:
@@ -293,7 +293,9 @@ jobs:
       # WEBDAV_USERNAME / WEBDAV_PASSWORD repository secrets. Either may be a
       # token instead of a user and password.
       - name: Upload installer to WebDAV
+        id: webdav
         if: success()
+        continue-on-error: true
         env:
           WEBDAV_URL: ${{ inputs.webdav_url || vars.WEBDAV_URL }}
           WEBDAV_DIR: ${{ inputs.webdav_dir || vars.WEBDAV_DIR }}
@@ -343,6 +345,13 @@ jobs:
           }
           $lines += ''
           $lines -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
+      - name: Report WebDAV mirror failure
+        if: always() && steps.webdav.outcome == 'failure'
+        run: |
+          $message = 'WebDAV mirror upload failed; the unsigned installer remains available as a workflow artifact.'
+          Write-Warning $message
+          $message | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
       # Caching is an optimization: a cache failure must never fail a build that
       # produced an installer.
