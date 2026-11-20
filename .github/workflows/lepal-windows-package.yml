@@ -47,6 +47,11 @@ on:
         type: string
         default: 'https://download.deepseek.com'
         required: true
+      app_id:
+        description: '安装/升级身份；保持 com.lepal.harness，勿填上游 com.deepseek.dsh（两者会互相覆盖）'
+        type: string
+        default: 'com.lepal.harness'
+        required: true
       artifact_retention_days:
         description: '制品保留天数'
         type: number
@@ -149,7 +154,7 @@ jobs:
           INPUT_COMPRESSION_LEVEL: ${{ inputs.compression_level }}
           INPUT_POLICY_ORIGIN: ${{ inputs.policy_origin }}
           INPUT_POLICY_AUTH_ORIGIN: ${{ inputs.policy_auth_origin }}
-          INPUT_APP_ID: com.deepseek.dsh
+          INPUT_APP_ID: ${{ inputs.app_id }}
         run: |
           $origin = "$env:INPUT_POLICY_ORIGIN".Trim().TrimEnd('/')
           $authOrigin = "$env:INPUT_POLICY_AUTH_ORIGIN".Trim().TrimEnd('/')
@@ -158,6 +163,7 @@ jobs:
           }
           $appId = "$env:INPUT_APP_ID".Trim()
           if ($appId -cnotmatch '^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$') { throw "Invalid application id '$appId'" }
+          if ($appId -ieq 'com.deepseek.dsh') { throw "com.deepseek.dsh is the upstream DeepSeek Harness identity; use com.lepal.harness so both apps coexist" }
           $compression = $env:INPUT_COMPRESSION_LEVEL
           if (@('3', '7') -cnotcontains $compression) { throw "Compression level must be 3 or 7, got '$compression'" }
           # No spaces and no quoting inside the JSON value: the dotenv parser
