@@ -19,6 +19,19 @@ vi.mock('node:fs/promises', async importOriginal => ({
 }))
 
 describe('installer preparation preserves application dependencies', () => {
+
+  it('embeds no update feed and no mandatory policy when updates are disabled', async () => {
+    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
+    const config = createElectronBuilderConfig({
+      DSH_DESKTOP_APP_ID: 'com.lepal.harness',
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DSH_DESKTOP_TARGET_ARCH: 'x64',
+      DSH_DESKTOP_UNSIGNED: '1',
+      DSH_DESKTOP_UPDATES_DISABLED: '1',
+    }, 'win32', 'x64')
+    expect(config.publish).toBeNull()
+    expect(config.extraMetadata).not.toHaveProperty('dshMandatoryUpdatePolicy')
+  })
   it('uses centered LePal-only artwork in each Windows installer banner', async () => {
     for (const [name, scale, dark] of [
       ['brand.png', 1, false],

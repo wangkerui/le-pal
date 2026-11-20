@@ -264,6 +264,13 @@ describe('Desktop local packaging configuration', () => {
     expect(() => { validateDesktopPackageEnvironment(RELEASE, MACOS) }).toThrow('DSH_DESKTOP_MACOS_SIGNING_IDENTITY')
   })
 
+  it('validates an unsigned Windows package without a policy service when updates are disabled', () => {
+    const disabled = { DSH_DESKTOP_APP_ID: 'com.lepal.harness', DSH_DESKTOP_UPDATES_DISABLED: '1' }
+    expect(() => { validateDesktopPackageEnvironment(disabled, WINDOWS, { unsigned: true }) }).not.toThrow()
+    expect(() => { validateDesktopPackageEnvironment({ DSH_DESKTOP_APP_ID: 'com.lepal.harness' }, WINDOWS, { unsigned: true }) })
+      .toThrow('DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN')
+  })
+
   it('accepts one local npm registry mirror and rejects other registry forms', () => {
     const release = { ...POLICY, DSH_DESKTOP_APP_ID: RELEASE.DSH_DESKTOP_APP_ID }
     expect(() => {

@@ -52,6 +52,11 @@ on:
         type: string
         default: 'com.lepal.harness'
         required: true
+      auto_update:
+        description: '启用自动更新（需要已准备好的内部更新地址）；默认 false，安装包不检查更新'
+        type: boolean
+        default: false
+        required: true
       artifact_retention_days:
         description: '制品保留天数'
         type: number
@@ -143,10 +148,11 @@ jobs:
           pnpm install --frozen-lockfile
           exit $LASTEXITCODE
 
-      # The Windows packaging sequence requires the policy settings even when
-      # unsigned, and reads them only from apps/desktop/.env.windows: ambient
-      # DSH_DESKTOP_* variables are filtered out by the loader. Generate that
-      # file so no machine configuration has to exist on a hosted runner.
+      # The packaging sequence reads these settings only from
+      # apps/desktop/.env.windows: ambient DSH_DESKTOP_* variables are filtered
+      # out by the loader. Generate that file so no machine configuration has to
+      # exist on a hosted runner. Updates stay disabled until an internal feed
+      # exists; then dispatch with auto_update=true and the internal origins.
       - name: Write packaging settings
         id: prepare
         env:
@@ -155,33 +161,42 @@ jobs:
           INPUT_POLICY_ORIGIN: ${{ inputs.policy_origin }}
           INPUT_POLICY_AUTH_ORIGIN: ${{ inputs.policy_auth_origin }}
           INPUT_APP_ID: ${{ inputs.app_id }}
+          INPUT_AUTO_UPDATE: ${{ inputs.auto_update }}
         run: |
-          $origin = "$env:INPUT_POLICY_ORIGIN".Trim().TrimEnd('/')
-          $authOrigin = "$env:INPUT_POLICY_AUTH_ORIGIN".Trim().TrimEnd('/')
-          foreach ($value in @($origin, $authOrigin)) {
-            if ($value -cnotmatch '^https://[^/]+$') { throw "Policy origins must be bare HTTPS origins, got '$value'" }
-          }
           $appId = "$env:INPUT_APP_ID".Trim()
           if ($appId -cnotmatch '^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$') { throw "Invalid application id '$appId'" }
           if ($appId -ieq 'com.deepseek.dsh') { throw "com.deepseek.dsh is the upstream DeepSeek Harness identity; use com.lepal.harness so both apps coexist" }
           $compression = $env:INPUT_COMPRESSION_LEVEL
           if (@('3', '7') -cnotcontains $compression) { throw "Compression level must be 3 or 7, got '$compression'" }
-          # No spaces and no quoting inside the JSON value: the dotenv parser
-          # keeps an unquoted value verbatim.
+          $autoUpdate = "$env:INPUT_AUTO_UPDATE".Trim() -ieq 'true'
           $settings = @(
             "DSH_DESKTOP_APP_ID=$appId"
-            'DSH_DESKTOP_AUTO_UPDATE_ENV=test'
-            "DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN=$origin"
-            "DSH_DESKTOP_MANDATORY_UPDATE_CONFIG={`"allowedAuthOrigins`":[`"$authOrigin`"]}"
             "DSH_DESKTOP_WINDOWS_COMPRESSION_LEVEL=$compression"
             'DSH_DESKTOP_WINDOWS_PACK_CONCURRENCY=4'
             'DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY=4'
           )
+          if ($autoUpdate) {
+            $origin = "$env:INPUT_POLICY_ORIGIN".Trim().TrimEnd('/')
+            $authOrigin = "$env:INPUT_POLICY_AUTH_ORIGIN".Trim().TrimEnd('/')
+            foreach ($value in @($origin, $authOrigin)) {
+              if ($value -cnotmatch '^https://[^/]+$') { throw "Policy origins must be bare HTTPS origins, got '$value'" }
+            }
+            # No spaces and no quoting inside the JSON value: the dotenv parser
+            # keeps an unquoted value verbatim.
+            $settings += @(
+              'DSH_DESKTOP_AUTO_UPDATE_ENV=test'
+              "DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN=$origin"
+              "DSH_DESKTOP_MANDATORY_UPDATE_CONFIG={`"allowedAuthOrigins`":[`"$authOrigin`"]}"
+            )
+          } else {
+            $settings += 'DSH_DESKTOP_UPDATES_DISABLED=1'
+          }
           $settings -join "`n" | Set-Content -LiteralPath 'apps/desktop/.env.windows' -Encoding utf8NoBOM -NoNewline
           $product = (Get-Content 'apps/desktop/package.json' -Raw | ConvertFrom-Json).version
           $version = if ([string]::IsNullOrWhiteSpace($env:INPUT_BUILD_VERSION)) { $product } else { $env:INPUT_BUILD_VERSION.Trim() }
           "version=$version" >> $env:GITHUB_OUTPUT
-          Write-Host "Prepared unsigned Windows installer $version with policy origin $origin"
+          $mode = if ($autoUpdate) { "auto-update through $origin" } else { 'auto-update disabled' }
+          Write-Host "Prepared unsigned Windows installer $version with $mode"
 
       # Fail before the hour-long build when the runner lacks tar or the Visual
       # Studio C++ tools the installer helper compiles with.
