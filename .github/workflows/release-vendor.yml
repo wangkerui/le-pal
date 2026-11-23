@@ -2,14 +2,13 @@
 # vendor/, each on its own version line. This sequence releases independently of
 # dsh and of the native packages.
 #
-# Pack runs without credentials on every pull request and push to le-pal-dev or
-# master. Official npm publication remains disabled in release-vendor-publish.yml.
+# Pack runs without credentials on every pull request and manual dispatch.
+# Push-triggered package rehearsals stay disabled for LePal because official npm
+# publication is disabled in release-vendor-publish.yml.
 name: Release (vendor)
 
 on:
   pull_request:
-  push:
-    branches: [le-pal-dev, master]
   workflow_dispatch:
 
 permissions:

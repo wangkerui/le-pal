@@ -1512,7 +1512,7 @@ describe('npm release workflows', () => {
     const commands = dependencies.steps.flatMap(step =>
       isRecord(step) && typeof step.run === 'string' ? [step.run] : [])
 
-    expect(Object.keys(workflow.on).sort()).toEqual(['pull_request', 'push', 'workflow_dispatch'])
+    expect(Object.keys(workflow.on).sort()).toEqual(['pull_request', 'workflow_dispatch'])
     expect(commands).toContain('pnpm run verify-package-dependencies')
     expect(commands.join('\n')).not.toContain('verify-npm-install-layout')
     expect(String(dependencies['runs-on'])).toContain('blacksmith-4vcpu-ubuntu-2404')

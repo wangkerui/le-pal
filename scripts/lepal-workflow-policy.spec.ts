@@ -81,6 +81,26 @@ describe('LePal workflow policy', () => {
     expect(invalid).toEqual([])
   })
 
+  it('does not run package release rehearsals on pushes', () => {
+    for (const file of ['release.yml', 'release-vendor.yml']) {
+      expect(Object.keys(workflow(file).on)).toEqual(['pull_request', 'workflow_dispatch'])
+    }
+  })
+
+  it('limits sandbox pushes to security-relevant paths', () => {
+    const push = workflow('sandbox.yml').on.push as { branches?: unknown; paths?: unknown } | undefined
+    expect(push?.branches).toEqual(['le-pal-dev', 'master'])
+    expect(push?.paths).toEqual(expect.arrayContaining([
+      '.github/workflows/sandbox.yml',
+      'native/system/**',
+      'packages/sandbox/**',
+      'packages/shell/bash-sandbox/**',
+      'packages/shell/pwsh-sandbox/**',
+      'packages/fs/fs-sandbox/**',
+      'scripts/prepare-ci-bubblewrap.sh',
+    ]))
+  })
+
   it('packages the current LePal commit on a public Windows runner without DeepSeek defaults', () => {
     const lepal = workflow('lepal-windows-package.yml')
     const dispatch = lepal.on.workflow_dispatch as { inputs: Record<string, Record<string, unknown>> }

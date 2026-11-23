@@ -2,15 +2,13 @@
 # entries, all on one version. The vendored framework and the native packages are
 # separate sequences with their own workflows and version lines.
 #
-# Pack and dependency-layout verification run without credentials on every pull
-# request and push to le-pal-dev or master. Official npm publication remains
-# disabled in release-publish.yml.
+# Pack and dependency-policy verification run without credentials on every pull
+# request and manual dispatch. Push-triggered package rehearsals stay disabled
+# for LePal because official npm publication is disabled in release-publish.yml.
 name: Release (dsh)
 
 on:
   pull_request:
-  push:
-    branches: [le-pal-dev, master]
   workflow_dispatch:
 
 permissions:
