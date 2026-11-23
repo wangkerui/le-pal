@@ -1503,7 +1503,7 @@ describe('npm release workflows', () => {
     }
   })
 
-  it('runs dependency policy and npm layout checks in the DSH release workflow', () => {
+  it('runs dependency policy without the upstream npm layout gate in the DSH release workflow', () => {
     const workflow = loadWorkflow('.github/workflows/release.yml')
     const dependencies = workflowJob(workflow, 'dependencies')
     if (!isRecord(workflow.on) || !Array.isArray(dependencies.steps)) {
@@ -1513,12 +1513,8 @@ describe('npm release workflows', () => {
       isRecord(step) && typeof step.run === 'string' ? [step.run] : [])
 
     expect(Object.keys(workflow.on).sort()).toEqual(['pull_request', 'push', 'workflow_dispatch'])
-    // Both verifications run from one step so the lane pays their longer half.
-    const combined = commands.find(command => command.includes('verify-package-dependencies'))
-    expect(combined).toContain('verify-npm-install-layout')
-    expect(combined).toContain('wait "$dependencies_pid"')
-    expect(commands).not.toContain('pnpm run verify-package-dependencies')
-    expect(commands).not.toContain('pnpm run verify-npm-install-layout')
+    expect(commands).toContain('pnpm run verify-package-dependencies')
+    expect(commands.join('\n')).not.toContain('verify-npm-install-layout')
     expect(String(dependencies['runs-on'])).toContain('blacksmith-4vcpu-ubuntu-2404')
   })
 })
