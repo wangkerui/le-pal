@@ -34,7 +34,7 @@ describe.each(['arm64', 'x64'])('macOS %s packaging', (arch) => {
   it('keeps signed Mac packaging callable but without a manual entry point', () => {
     expect(Object.keys(workflow.on)).toEqual(['workflow_call'])
     expect(workflow.jobs.package!.env.PACKAGE_VERSION_MODE).toBe("${{ inputs.version_mode == 'follow-dsh' && 'product' || inputs.version_mode == 'build-number' && 'auto' || inputs.version_mode }}")
-    expect(workflow.on.workflow_call).toMatchObject({ inputs: { version_mode: { default: 'default', options: ['default', 'follow-dsh', 'build-number', 'manual'] } } })
+    expect(workflow.on.workflow_call).toMatchObject({ inputs: { version_mode: { default: 'default' } } })
     expect(workflow.jobs.package).not.toHaveProperty('name')
     expect(workflow.on.workflow_call).toMatchObject({ inputs: { test_release_id: { type: 'string', default: '', required: false } } })
     expect(workflow.on.workflow_call).not.toHaveProperty('inputs.publish')
@@ -77,7 +77,7 @@ describe.each(['arm64', 'x64'])('macOS %s packaging', (arch) => {
 
   it('offers ZIP compression choices with a fast default', () => {
     expect(workflow.on.workflow_call).toMatchObject({ inputs: { compression_level: {
-      type: 'choice', options: ['3', '7'], default: '3', required: true,
+      type: 'string', default: '3', required: true,
     } } })
     expect(workflow.jobs.package!.env.PACKAGE_MACOS_ZIP_COMPRESSION_LEVEL).toBe('${{ inputs.compression_level }}')
   })

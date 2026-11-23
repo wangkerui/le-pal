@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import yaml from 'js-yaml'
 import { describe, expect, it } from 'vitest'
@@ -65,6 +65,20 @@ describe('LePal workflow policy', () => {
     'cua-helper-package-macos.yml',
   ])('keeps the official publication workflow %s disabled', (file) => {
     expect(Object.keys(workflow(file).on)).toEqual(['workflow_call'])
+  })
+
+  it('uses only input types supported by workflow_call', () => {
+    const invalid: string[] = []
+    for (const file of readdirSync(resolve(root, '.github/workflows'))) {
+      if (!/\.ya?ml$/u.test(file)) continue
+      const call = workflow(file).on.workflow_call as { inputs?: Record<string, { type?: unknown; options?: unknown }> } | undefined
+      for (const [name, input] of Object.entries(call?.inputs ?? {})) {
+        if (!['string', 'number', 'boolean'].includes(String(input.type)) || 'options' in input) {
+          invalid.push(`${file}:${name}`)
+        }
+      }
+    }
+    expect(invalid).toEqual([])
   })
 
   it('packages the current LePal commit on a public Windows runner without DeepSeek defaults', () => {

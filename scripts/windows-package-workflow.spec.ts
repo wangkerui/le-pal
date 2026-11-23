@@ -62,7 +62,7 @@ it.skipIf(process.platform !== 'win32')('resets only the allocated checkout with
 
 it('keeps signed packaging callable but without a manual entry point', () => {
   expect(Object.keys(workflow.on)).toEqual(['workflow_call'])
-  expect(workflow.on.workflow_call).toMatchObject({ inputs: { version_mode: { default: 'default', options: ['default', 'follow-dsh', 'build-number', 'manual'] } } })
+  expect(workflow.on.workflow_call).toMatchObject({ inputs: { version_mode: { default: 'default' } } })
   expect(workflow.jobs.package).not.toHaveProperty('name')
   expect(job['runs-on']).toBe('${{ inputs.runner }}')
   expect(JSON.stringify(job.env)).not.toContain('runner.')
@@ -74,7 +74,7 @@ it('keeps signed packaging callable but without a manual entry point', () => {
     'build_version', 'cache_namespace', 'compression_level', 'preset', 'runner', 'signing', 'source_ref', 'test_release_id', 'update_channel', 'version_mode',
   ])
   expect(workflow.on.workflow_call!.inputs.signing!.default).toBe('signed')
-  expect(workflow.on.workflow_call!.inputs.compression_level).toMatchObject({ type: 'choice', options: ['3', '7'], default: '3', required: true })
+  expect(workflow.on.workflow_call!.inputs.compression_level).toMatchObject({ type: 'string', default: '3', required: true })
   expect(job.env.PACKAGE_WINDOWS_COMPRESSION_LEVEL).toBe('${{ inputs.compression_level }}')
   expect(workflow.on.workflow_call!.inputs.build_version!.required).toBe(false)
   expect(workflow.on.workflow_call!.inputs.version_mode!.default).toBe('default')

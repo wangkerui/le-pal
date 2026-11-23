@@ -12,20 +12,17 @@ on:
         required: true
       preset:
         description: '打包环境：选择机器上的 test 或 production 配置；同时决定后续发布环境'
-        type: choice
-        options: [test, production]
+        type: string
         default: test
         required: true
       update_channel:
         description: '升级通道：人工选择 nightly 或 stable，与版本后缀无关；默认通道由此打包输入确定'
-        type: choice
-        options: [nightly, stable]
+        type: string
         default: nightly
         required: true
       version_mode:
         description: '版本模式：default 按环境自动选择（test 取 build-number，production 取 follow-dsh）；follow-dsh 跟随 dsh 包版本号；build-number 自动追加构建编号；manual 手填'
-        type: choice
-        options: [default, follow-dsh, build-number, manual]
+        type: string
         default: default
         required: true
       build_version:
@@ -40,8 +37,7 @@ on:
         required: false
       compression_level:
         description: 'ZIP 压缩等级：只影响 ZIP 和自动升级下载，不影响 DMG；3 打包较快，7 压缩更强'
-        type: choice
-        options: ['3', '7']
+        type: string
         default: '3'
         required: true
       skip_notarization:
