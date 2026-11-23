@@ -9,6 +9,7 @@ interface Workflow {
   on: Record<string, unknown>
   jobs: Record<string, {
     if?: string
+    environment?: string
     'runs-on'?: string | string[]
     steps?: Array<Record<string, unknown>>
   }>
@@ -74,9 +75,13 @@ describe('LePal workflow policy', () => {
     expect(dispatch.inputs.policy_origin).toMatchObject({ default: '', required: false })
     expect(dispatch.inputs.policy_auth_origin).toMatchObject({ default: '', required: false })
     expect(dispatch.inputs.auto_update).toMatchObject({ type: 'boolean', default: false })
+    expect(dispatch.inputs).not.toHaveProperty('webdav_url')
+    const text = readFileSync(resolve(root, '.github/workflows/lepal-windows-package.yml'), 'utf8')
+    expect(text).not.toMatch(/webdav/iu)
     const job = lepal.jobs.package
     if (job === undefined) throw new TypeError('LePal workflow must define the package job')
     expect(job['runs-on']).toBe('windows-latest')
+    expect(job.environment).toBeUndefined()
     const checkout = job.steps?.find(step => step.uses === 'actions/checkout@v7.0.1')
     expect(checkout?.with).toMatchObject({ ref: '${{ inputs.source_ref || github.sha }}' })
     const prepare = job.steps?.find(step => step.id === 'prepare')

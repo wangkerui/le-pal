@@ -8,9 +8,8 @@ name: Build Desktop · Windows · GitHub-hosted · unsigned
 # DeepSeek packaging runner. Unsigned builds are internal debugging artifacts
 # only: never serve them to an updater ([packaging guide](../../apps/desktop/packaging/README.md)).
 #
-# The job retains installer artifacts and optionally mirrors the installer and
-# checksum to WebDAV. It creates no COS objects, release tag, or retained
-# package inventory.
+# The job retains installer artifacts in Actions. It creates no COS objects,
+# release tag, or retained package inventory.
 
 on:
   workflow_dispatch:
@@ -51,21 +50,6 @@ on:
         type: boolean
         default: false
         required: true
-      webdav_url:
-        description: 'WebDAV 基础地址（如 https://nas.example.com:5006/dav）；留空使用仓库变量 WEBDAV_URL，都未配置则跳过上传'
-        type: string
-        default: ''
-        required: false
-      webdav_dir:
-        description: 'WebDAV 远端目录；留空使用 lepal/<版本>'
-        type: string
-        default: ''
-        required: false
-      webdav_insecure:
-        description: 'NAS 使用自签名证书时允许跳过证书校验'
-        type: boolean
-        default: false
-        required: false
       artifact_retention_days:
         description: '制品保留天数'
         type: number
@@ -86,7 +70,6 @@ env:
 jobs:
   package:
     name: windows x64 / unsigned installer
-    environment: WEBDAV_USERNAME
     runs-on: windows-latest
     # The packaging sequence builds the whole repository, packs the runtime,
     # then runs electron-builder and a packaged-runtime smoke test. A hosted
@@ -282,62 +265,6 @@ jobs:
             apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.yml
           if-no-files-found: error
           retention-days: ${{ inputs.artifact_retention_days }}
-
-      # Internal distribution mirror. Set the URL through the dispatch input or
-      # the WEBDAV_URL repository variable, and the credentials through the
-      # WEBDAV_USERNAME / WEBDAV_PASSWORD repository secrets. Either may be a
-      # token instead of a user and password.
-      - name: Upload installer to WebDAV
-        if: success()
-        env:
-          WEBDAV_URL: ${{ inputs.webdav_url || vars.WEBDAV_URL }}
-          WEBDAV_DIR: ${{ inputs.webdav_dir || vars.WEBDAV_DIR }}
-          WEBDAV_USERNAME: ${{ secrets.WEBDAV_USERNAME }}
-          WEBDAV_PASSWORD: ${{ secrets.WEBDAV_PASSWORD }}
-          WEBDAV_INSECURE: ${{ inputs.webdav_insecure || vars.WEBDAV_INSECURE }}
-          ARTIFACTS_DIR: apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts
-          PACKAGE_VERSION: ${{ steps.prepare.outputs.version }}
-        run: |
-          $base = "$env:WEBDAV_URL".Trim().TrimEnd('/')
-          if ([string]::IsNullOrWhiteSpace($base)) {
-            Write-Host 'WebDAV is not configured; skipping the NAS upload.'
-            exit 0
-          }
-          if ($base -cnotmatch '^https?://') { throw 'webdav_url must use http or https' }
-          $dir = "$env:WEBDAV_DIR".Trim().Trim('/')
-          if ([string]::IsNullOrWhiteSpace($dir)) { $dir = "lepal/$($env:PACKAGE_VERSION)" }
-          $auth = @()
-          if (-not [string]::IsNullOrWhiteSpace($env:WEBDAV_USERNAME)) {
-            $auth = @('--user', "$($env:WEBDAV_USERNAME):$($env:WEBDAV_PASSWORD)")
-          }
-          if ("$env:WEBDAV_INSECURE" -ieq 'true') { $auth += '--insecure' }
-          $installers = @(Get-ChildItem -LiteralPath $env:ARTIFACTS_DIR -Filter '*.exe' -File)
-          if ($installers.Count -eq 0) { throw "No installer was produced in $env:ARTIFACTS_DIR" }
-
-          $remoteDir = $base
-          foreach ($segment in ($dir -split '/')) {
-            if ([string]::IsNullOrWhiteSpace($segment)) { continue }
-            $remoteDir = "$remoteDir/$([uri]::EscapeDataString($segment))"
-            $code = & curl.exe --silent --show-error --output NUL --write-out '%{http_code}' @auth --request MKCOL --data '' $remoteDir
-            if ($LASTEXITCODE -ne 0) { throw "WebDAV MKCOL failed for $remoteDir" }
-            if (@('200', '201', '204', '301', '405') -notcontains $code) { throw "WebDAV MKCOL $remoteDir returned $code" }
-          }
-
-          $lines = @('WebDAV upload', '', "Remote directory: $dir", '')
-          foreach ($installer in $installers) {
-            $checksumPath = Join-Path $installer.DirectoryName "$($installer.Name).sha256"
-            if (-not (Test-Path -LiteralPath $checksumPath -PathType Leaf)) { throw "Missing checksum for $($installer.Name)" }
-            foreach ($file in @($installer.FullName, $checksumPath)) {
-              $remote = "$remoteDir/$([uri]::EscapeDataString((Split-Path -Leaf $file)))"
-              & curl.exe --fail --silent --show-error --location --retry 5 --retry-delay 5 --retry-all-errors @auth --upload-file $file $remote
-              if ($LASTEXITCODE -ne 0) { throw "WebDAV upload failed for $file" }
-              $code = & curl.exe --silent --show-error --output NUL --write-out '%{http_code}' @auth --request PROPFIND --header 'Depth: 0' $remote
-              if ($LASTEXITCODE -ne 0 -or @('200', '207') -notcontains $code) { throw "WebDAV verification failed for $remote ($code)" }
-              $lines += "- $([System.IO.Path]::GetFileName($file))"
-            }
-          }
-          $lines += ''
-          $lines -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
       # Caching is an optimization: a cache failure must never fail a build that
       # produced an installer.
