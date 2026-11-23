@@ -2,8 +2,10 @@ name: Publish Desktop · COS
 
 run-name: Publish Desktop package ${{ inputs.package_run_id }} / attempt ${{ inputs.package_run_attempt || 'latest' }}
 
+# Disabled for LePal: official COS, EdgeOne, and DeepSeek update publication
+# has no active caller. A future LePal publisher must use its own origins.
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       package_run_id:
         description: '打包运行 ID：填写成功的 Package Desktop run ID；发布环境和 release ID 沿用原包'

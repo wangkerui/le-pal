@@ -1,27 +1,8 @@
 name: Issue lifecycle
 
+# Disabled for LePal: DeepSeek Project and Issue lifecycle automation.
 on:
-  issues:
-    types:
-      - opened
-      - edited
-      - labeled
-      - unlabeled
-      - closed
-      - reopened
-      - typed
-      - untyped
-      - field_added
-      - field_removed
-  pull_request:
-    types:
-      - opened
-      - edited
-      - reopened
-      - review_requested
-  pull_request_review:
-    types:
-      - submitted
+  workflow_call:
 
 permissions:
   contents: read

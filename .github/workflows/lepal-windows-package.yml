@@ -1,26 +1,25 @@
 name: Build Desktop · Windows · GitHub-hosted · unsigned
 
-# Internal, unsigned Windows desktop builds on GitHub-hosted runners.
+# Internal, unsigned LePal Windows desktop builds on GitHub-hosted runners.
 #
-# This workflow is NOT a release path. It exists so contributors without access
-# to the packaging machine can still produce and download a Windows installer.
-# Signed installers, anything publishable, and anything the auto-updater may
-# consume must come from `.github/workflows/windows-package.yml` on the
-# self-hosted `dsh-win-package-trial` runner, which owns the EV hardware token.
-# Unsigned builds are internal debugging artifacts only: never publish them to
-# test/production and never serve them to the updater ([packaging guide](../../apps/desktop/packaging/README.md)).
+# This workflow is NOT a release path and does not sign installers. A future
+# LePal signed release pipeline must own its certificate, update origin, and
+# distribution service; do not route this workflow through the retired
+# DeepSeek packaging runner. Unsigned builds are internal debugging artifacts
+# only: never serve them to an updater ([packaging guide](../../apps/desktop/packaging/README.md)).
 #
-# No COS upload, no release tag, no retained package inventory: the job stops at
-# the Actions artifact.
+# The job retains installer artifacts and optionally mirrors the installer and
+# checksum to WebDAV. It creates no COS objects, release tag, or retained
+# package inventory.
 
 on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: '打包源码：仓库内分支或 tag（须包含 apps/desktop 打包脚本）'
+        description: '打包源码：仓库内分支或 tag；留空使用本次 workflow 所在 commit'
         type: string
-        default: master
-        required: true
+        default: ''
+        required: false
       build_version:
         description: '构建版本：留空使用 apps/desktop/package.json 的产品版本'
         type: string
@@ -32,28 +31,23 @@ on:
         options: ['3', '7']
         default: '3'
         required: true
-      runner:
-        description: '运行机器：默认 GitHub 托管 windows-latest；大机器请填组织已配置的标签'
-        type: string
-        default: windows-latest
-        required: true
       policy_origin:
-        description: '强制更新策略 origin，会写进安装包；须为裸 HTTPS origin'
+        description: '强制更新策略 origin，会写进安装包；须为裸 HTTPS origin，留空则由 auto_update 检查拒绝'
         type: string
-        default: 'https://download.deepseek.com'
-        required: true
+        default: ''
+        required: false
       policy_auth_origin:
-        description: '测试环境登录 origin，会写进安装包；须为裸 HTTPS origin'
+        description: '强制更新策略的登录 origin，会写进安装包；须为裸 HTTPS origin'
         type: string
-        default: 'https://download.deepseek.com'
-        required: true
+        default: ''
+        required: false
       app_id:
         description: '安装/升级身份；保持 com.lepal.harness，勿填上游 com.deepseek.dsh（两者会互相覆盖）'
         type: string
         default: 'com.lepal.harness'
         required: true
       auto_update:
-        description: '启用自动更新（需要已准备好的内部更新地址）；默认 false，安装包不检查更新'
+        description: '启用强制更新策略；安装包仍为 unsigned，不会生成可用的自动更新 feed'
         type: boolean
         default: false
         required: true
@@ -93,7 +87,7 @@ jobs:
   package:
     name: windows x64 / unsigned installer
     environment: WEBDAV_USERNAME
-    runs-on: ${{ inputs.runner }}
+    runs-on: windows-latest
     # The packaging sequence builds the whole repository, packs the runtime,
     # then runs electron-builder and a packaged-runtime smoke test. A hosted
     # 4-vCPU machine is considerably slower than the packaging machine.
@@ -113,7 +107,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-          ref: ${{ inputs.source_ref }}
+          ref: ${{ inputs.source_ref || github.sha }}
 
       # pnpm links workspace packages with symlinks; Windows only grants that to
       # a user allowed to create them (hosted runners run as administrators).
@@ -195,6 +189,7 @@ jobs:
             $origin = "$env:INPUT_POLICY_ORIGIN".Trim().TrimEnd('/')
             $authOrigin = "$env:INPUT_POLICY_AUTH_ORIGIN".Trim().TrimEnd('/')
             foreach ($value in @($origin, $authOrigin)) {
+              if ([string]::IsNullOrWhiteSpace($value)) { throw 'Set both policy origins before enabling auto_update' }
               if ($value -cnotmatch '^https://[^/]+$') { throw "Policy origins must be bare HTTPS origins, got '$value'" }
             }
             # No spaces and no quoting inside the JSON value: the dotenv parser
@@ -250,7 +245,7 @@ jobs:
             ''
             "Version: ${{ steps.prepare.outputs.version }}"
             "Commit: ${{ github.sha }}"
-            "Runner: ${{ inputs.runner }}"
+            "Runner: ${{ runner.name }}"
             ''
           )
           foreach ($installer in $installers) {

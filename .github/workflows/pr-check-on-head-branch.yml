@@ -1,8 +1,7 @@
 name: Policy
+# Disabled for LePal: no active caller uses DeepSeek's merge-policy action.
 on:
-  pull_request_target:
-    branches: [master, 'release/dsh-[0-9]+.[0-9]+.[0-9]+']
-    types: [opened, synchronize, reopened, ready_for_review, review_requested, auto_merge_enabled, labeled]
+  workflow_call:
 permissions:
   contents: read
 concurrency:

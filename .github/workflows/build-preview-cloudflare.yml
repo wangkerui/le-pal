@@ -39,9 +39,7 @@ jobs:
     # (Host and Client package compilation, then each face's aggregate test and
     # script check) after the Typert pass. Publishing is best effort: transport,
     # Access, and comment failures warn instead of failing the check.
-    runs-on: >-
-      ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404'
-          || 'ubuntu-24.04' }}
+    runs-on: ubuntu-24.04
     name: cloudflare pages preview
     steps:
       # The pull_request checkout is the merge commit; depth 2 brings its first

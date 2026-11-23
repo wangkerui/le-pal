@@ -18,11 +18,8 @@ const preview = workflow.jobs.preview
 describe('PR preview workflow', () => {
   it('keeps every PR author on the selected runner', () => {
     expect(Object.keys(workflow.jobs)).toEqual(['preview'])
-    // The required outcome is the build, so the lane runs on four vCPUs; the
-    // hosted label stays as the fallback when the Blacksmith pool is not chosen.
-    expect(preview['runs-on']).toContain('blacksmith-4vcpu-ubuntu-2404')
-    expect(preview['runs-on']).toContain("'ubuntu-24.04'")
-    expect(preview['runs-on']).toContain('DSH_CI_FAILOVER_LINUX')
+    // The required outcome is the build, so the lane runs on public Linux.
+    expect(preview['runs-on']).toBe('ubuntu-24.04')
     expect(workflow.on).toEqual({ pull_request: { types: ['opened', 'synchronize', 'reopened'] } })
     expect(workflow.permissions).toEqual({ contents: 'read', 'pull-requests': 'write' })
     expect(preview.steps.find(step => step.uses === 'actions/checkout@v7.0.1')?.with).toEqual({ 'persist-credentials': false, 'fetch-depth': 2 })

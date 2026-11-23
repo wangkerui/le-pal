@@ -1,14 +1,6 @@
 name: Package CUA helper · macOS · arm64 + x64
 
 on:
-  workflow_dispatch:
-    inputs:
-      preset:
-        description: '机器上的签名配置'
-        type: choice
-        options: [test, production]
-        default: test
-        required: true
   workflow_call:
     inputs:
       reuse:

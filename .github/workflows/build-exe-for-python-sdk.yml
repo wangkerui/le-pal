@@ -26,6 +26,11 @@ on:
         type: boolean
         required: false
         default: false
+      live_api:
+        description: Run trusted installed-wheel tests against the real DeepSeek API.
+        type: boolean
+        required: false
+        default: false
     secrets:
       DEEPSEEK_API_KEY_EXTERNAL:
         description: Real DeepSeek API key for trusted installed-wheel pull-request tests.
@@ -40,6 +45,11 @@ on:
         type: string
         required: false
         default: ''
+      live_api:
+        description: Run installed-wheel tests against the real DeepSeek API; requires DEEPSEEK_API_KEY_EXTERNAL.
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   # Keep the called workflow distinct from its caller's concurrency group;
@@ -398,7 +408,8 @@ jobs:
 
       - name: Preflight installed-wheel real API test (POSIX)
         if: >-
-          inputs.ci
+          inputs.live_api
+          && inputs.ci
           && runner.os != 'Windows'
           && (github.event_name != 'pull_request'
               || !(github.event.pull_request.head.repo.fork
@@ -414,7 +425,8 @@ jobs:
 
       - name: Preflight installed-wheel real API test (Windows)
         if: >-
-          inputs.ci
+          inputs.live_api
+          && inputs.ci
           && runner.os == 'Windows'
           && (github.event_name != 'pull_request'
               || !(github.event.pull_request.head.repo.fork
@@ -429,7 +441,8 @@ jobs:
 
       - name: Run installed-wheel real API black-box test (POSIX)
         if: >-
-          inputs.ci
+          inputs.live_api
+          && inputs.ci
           && runner.os != 'Windows'
           && (github.event_name != 'pull_request'
               || !(github.event.pull_request.head.repo.fork
@@ -449,7 +462,8 @@ jobs:
 
       - name: Run installed-wheel real API black-box test (Windows)
         if: >-
-          inputs.ci
+          inputs.live_api
+          && inputs.ci
           && runner.os == 'Windows'
           && (github.event_name != 'pull_request'
               || !(github.event.pull_request.head.repo.fork

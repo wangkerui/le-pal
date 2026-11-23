@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { runInNewContext } from 'node:vm'
@@ -164,7 +163,6 @@ describe('CI workflow', () => {
     for (const [file, jobName, expected] of [
       ['release.yml', 'pack', official],
       ['release-vendor.yml', 'pack', vendor],
-      ['e2e.yml', 'e2e', official],
     ] as const) {
       const job = workflowJob(loadWorkflow('.github/workflows/' + file), jobName)
       if (!Array.isArray(job.steps)) throw new TypeError(`${jobName} must define steps`)
@@ -412,11 +410,11 @@ describe('CI workflow', () => {
       expect(job['runs-on'], `${jobName} runs-on must not use the Linux failover switch`).not.toContain('DSH_CI_FAILOVER_LINUX')
       expect(job['runs-on']).toContain('self-hosted')
       expect(job['runs-on']).toContain('dsh-win-ci')
-      expect(job['runs-on']).toContain('dsh-windows-2025-16core')
+      expect(job['runs-on']).toContain('windows-latest')
       const cores = jobName === 'windows-native-tests' ? 2 : 16
       expect(evaluateRunsOn(job['runs-on'], { vars: { DSH_CI_FAILOVER_WINDOWS: 'blacksmith' } }))
         .toBe(`blacksmith-${cores}vcpu-windows-2025`)
-      expect(job.if).toBe("github.event_name == 'pull_request'")
+      expect(job.if).toBe(jobName === 'windows-coverage' ? "github.event_name == 'pull_request'" : undefined)
     }
 
     // windows-build runs the blocking build/site pair.
@@ -605,9 +603,9 @@ describe('CI workflow', () => {
       })
     }
     for (const [name, selector, variable, pool, hosted] of [
-      ['linux gates', selectors.linux, 'DSH_CI_FAILOVER_LINUX', ['self-hosted', 'linux', 'x64', 'vm-backup'], 'dsh-ubuntu-24-04-16core'],
+      ['linux gates', selectors.linux, 'DSH_CI_FAILOVER_LINUX', ['self-hosted', 'linux', 'x64', 'vm-backup'], 'ubuntu-24.04'],
       ['linux aggregate', selectors.linuxAggregate, 'DSH_CI_FAILOVER_LINUX', ['self-hosted', 'linux', 'x64', 'vm-backup'], 'ubuntu-latest'],
-      ['windows lanes', selectors.windows, 'DSH_CI_FAILOVER_WINDOWS', ['self-hosted', 'dsh-win-ci', 'windows'], 'dsh-windows-2025-16core'],
+      ['windows lanes', selectors.windows, 'DSH_CI_FAILOVER_WINDOWS', ['self-hosted', 'dsh-win-ci', 'windows'], 'windows-latest'],
     ] as const) {
       expect(evaluate(selector, { [variable]: 'blacksmith' }), `${name} blacksmith value`).toMatch(/^blacksmith-/)
       expect(evaluate(selector, { [variable]: 'selfhosted' }), `${name} selfhosted value`).toEqual(pool)
@@ -657,16 +655,11 @@ describe('CI workflow', () => {
     })
   })
 
-  it('gates standalone keyless blacksmith jobs and benchmark tiers on the failover variables', () => {
+  it('keeps path-filtered and sandbox jobs on public runners', () => {
     const expectedFilenames = workflowJob(loadWorkflow('.github/workflows/expected-filenames.yml'), 'expected-filenames')
     const sandbox = workflowJob(loadWorkflow('.github/workflows/sandbox.yml'), 'sandbox-e2e')
-    expect(expectedFilenames['runs-on']).toContain('DSH_CI_FAILOVER_LINUX')
-    expect(expectedFilenames['runs-on']).toContain("== 'blacksmith'")
-    expect(expectedFilenames['runs-on']).toContain('blacksmith-4vcpu-ubuntu-2404')
-    expect(expectedFilenames['runs-on']).toContain("'ubuntu-latest'")
-    expect(sandbox['runs-on']).toContain("matrix.runner == 'bwrap'")
-    expect(sandbox['runs-on']).toContain('DSH_CI_FAILOVER_LINUX')
-    expect(sandbox['runs-on']).toContain('blacksmith-4vcpu-ubuntu-2404')
+    expect(expectedFilenames['runs-on']).toBe('ubuntu-latest')
+    expect(sandbox['runs-on']).toBe('${{ matrix.os }}')
     for (const name of ['larger-runner-benchmark', 'consolidated-runner-benchmark'] as const) {
       const benchmark = workflowJob(loadWorkflow('.github/workflows/ci-master.yml'), name)
       if (!isRecord(benchmark.strategy) || !isRecord(benchmark.strategy.matrix) || !Array.isArray(benchmark.strategy.matrix.include)) {
@@ -699,7 +692,7 @@ describe('CI workflow', () => {
       expect(evaluateRunsOn(benchmark['runs-on'], { vars: { DSH_CI_FAILOVER_LINUX: mode } })).toBe('ubuntu-24.04')
     }
     expect(JSON.stringify(benchmark.steps)).not.toContain('DSH_CI_FAILOVER_LINUX')
-    expect(benchmark.if).toBe("github.event_name == 'pull_request'")
+    expect(benchmark.if).toBeUndefined()
     expect(benchmark.needs).toBeUndefined()
     expect(benchmark['continue-on-error']).toBeUndefined()
     expect(benchmark.env).toBeUndefined()
@@ -823,25 +816,29 @@ describe('CI workflow', () => {
     })
     expect(prWorkflow.concurrency).toEqual(workflow.concurrency)
 
-    // The exact event sets are what keep master-only jobs out of the PR check
-    // panel: ci-master triggers only on push(master) + workflow_dispatch and
-    // never on pull_request; ci.yml is exactly pull_request-only. Assert the
-    // full sets so losing the wrong event, or gaining an extra one, fails.
+    // ci-master keeps its expensive upstream drills manual-only. The core
+    // Linux, Windows, and Python gates run for both pull requests and direct
+    // pushes to the default branch or master.
     if (!isRecord(workflow.on) || !isRecord(prWorkflow.on)) {
       throw new TypeError('both CI workflows must define on')
     }
-    expect(Object.keys(workflow.on).sort()).toEqual(['push', 'workflow_dispatch'])
-    expect(Object.keys(prWorkflow.on)).toEqual(['pull_request'])
+    expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
     const windowsWorkflow = loadWorkflow('.github/workflows/ci-windows.yml')
     if (!isRecord(windowsWorkflow.on)) throw new TypeError('CI Windows workflow must define on')
-    expect(Object.keys(windowsWorkflow.on)).toEqual(['pull_request'])
+    const pythonWorkflow = loadWorkflow('.github/workflows/ci-python.yml')
+    if (!isRecord(pythonWorkflow.on)) throw new TypeError('CI Python workflow must define on')
+    const expectedEvents = ['pull_request', 'push']
+    for (const lane of [prWorkflow, windowsWorkflow, pythonWorkflow]) {
+      if (!isRecord(lane.on)) throw new TypeError('core CI workflow must define on')
+      expect(Object.keys(lane.on)).toEqual(expectedEvents)
+      const push = lane.on.push
+      if (!isRecord(push)) throw new TypeError('core CI workflow must define push')
+      expect(push.branches).toEqual(['le-pal-dev', 'master'])
+    }
     expect(windowsWorkflow.concurrency).toEqual(workflow.concurrency)
     // Duplicated env must not drift: a Node bump on one lane only would run
     // Linux and Windows against different versions.
     expect(windowsWorkflow.env).toEqual(prWorkflow.env)
-    const pythonWorkflow = loadWorkflow('.github/workflows/ci-python.yml')
-    if (!isRecord(pythonWorkflow.on)) throw new TypeError('CI Python workflow must define on')
-    expect(Object.keys(pythonWorkflow.on)).toEqual(['pull_request'])
     expect(pythonWorkflow.concurrency).toEqual(workflow.concurrency)
     expect(pythonWorkflow.env).toEqual(prWorkflow.env)
 
@@ -850,27 +847,9 @@ describe('CI workflow', () => {
       const job = workflow.jobs[name]
       if (!isRecord(job)) throw new TypeError(`${name} must be defined`)
       expect(job.concurrency).toBeUndefined()
-      // Standby drills remain post-merge work, but share run cancellation.
+      // The manual-only workflow retains these guards as an extra layer.
       expect(job.if).toBe("github.event_name == 'push' && github.ref == 'refs/heads/master'")
     }
-
-    // Pin the post-merge runtime, Wine, and standby inventory.
-    const NOT_PUSH_REACHABLE = new Set([
-      "github.event_name == 'workflow_dispatch' && inputs.suite == 'larger-runner-benchmark'",
-      "github.event_name == 'workflow_dispatch' && inputs.suite == 'consolidated-runner-benchmark'",
-      "github.event_name == 'workflow_dispatch' && inputs.suite == 'ssh-helper'",
-    ])
-    const pushReachable = Object.entries(workflow.jobs)
-      .filter(([, job]) => {
-        if (!isRecord(job)) return false
-        if (job.if === undefined) return true // unconditional: runs on every event
-        if (job.if === false) return false // `if: false` parses as a boolean
-        if (typeof job.if !== 'string') return true // unrecognized shape: surface it
-        return !NOT_PUSH_REACHABLE.has(job.if.trim())
-      })
-      .map(([name]) => name)
-      .sort()
-    expect(pushReachable).toEqual(['python-runtime', 'serial-linux-selfhosted', 'serial-windows', 'windows'])
 
     // Manual benchmarks retain their bounded fan-out.
     for (const name of ['larger-runner-benchmark', 'consolidated-runner-benchmark']) {
@@ -930,14 +909,18 @@ describe('CI workflow', () => {
     }
 
     expect(pythonRuntime).toMatchObject({
-      if: "github.event_name == 'pull_request'",
       name: 'python runtime / release-shaped matrix',
       uses: './.github/workflows/build-exe-for-python-sdk.yml',
-      with: { targets: 'node24-linux-x64,node24-win-x64', ci: true },
+      with: {
+        targets: 'node24-linux-x64,node24-win-x64',
+        ci: true,
+        live_api: "${{ vars.LEPAL_LIVE_API == 'true' }}",
+      },
       secrets: {
         DEEPSEEK_API_KEY_EXTERNAL: '${{ secrets.DEEPSEEK_API_KEY_EXTERNAL }}',
       },
     })
+    expect(pythonRuntime).not.toHaveProperty('if')
     expect(aggregate.needs).toEqual(['python-sdk', 'python-runtime'])
     for (const file of ['ci.yml', 'ci-windows.yml']) {
       const other = loadWorkflow('.github/workflows/' + file)
@@ -1002,8 +985,8 @@ describe('CI workflow', () => {
   it('validates any ref by default but refuses publication without the matching SSH release tag', () => {
     const workflow = loadWorkflow('.github/workflows/publish-ssh-helper.yml')
     if (!isRecord(workflow.on)) throw new Error('SSH release must define triggers')
-    expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
-    expect(workflowEvent(workflow, 'workflow_dispatch').inputs).toMatchObject({ publish: { type: 'boolean', default: false } })
+    expect(Object.keys(workflow.on)).toEqual(['workflow_call'])
+    expect(workflowEvent(workflow, 'workflow_call').inputs).toMatchObject({ publish: { type: 'boolean', default: false } })
     const validate = workflowJob(workflow, 'validate')
     expect(validate.steps).toContainEqual(expect.objectContaining({ id: 'source', env: { PUBLISH: '${{ inputs.publish }}' } }))
     const source = nodeStepSource(validate, 'source')
@@ -1062,13 +1045,10 @@ describe('CI workflow', () => {
   })
 })
 
-describe('Runtime and LLM e2e Blacksmith routing', () => {
-  it('routes DeepSeek e2e only through the Linux Blacksmith switch', () => {
+describe('Runtime and LLM e2e routing', () => {
+  it('keeps the manual DeepSeek e2e suite on public Linux', () => {
     const job = workflowJob(loadWorkflow('.github/workflows/e2e.yml'), 'e2e')
-    for (const mode of ['', 'selfhosted', 'unexpected', 'blacksmith']) {
-      expect(evaluateRunsOn(job['runs-on'], { vars: { DSH_CI_FAILOVER_LINUX: mode, DSH_CI_FAILOVER_WINDOWS: 'blacksmith' } }))
-        .toBe(mode === 'blacksmith' ? 'blacksmith-4vcpu-ubuntu-2404' : 'ubuntu-latest')
-    }
+    expect(job['runs-on']).toBe('ubuntu-latest')
   })
 
   it('keeps native release and dispatch builders hosted while routing x64 CI by platform', () => {
@@ -1215,14 +1195,14 @@ describe('DeepSeek e2e workflow', () => {
 describe('Python release workflows', () => {
   it('keeps complete wheel validation separate from protected public publication', () => {
     const workflow = loadWorkflow('.github/workflows/python-release.yml')
-    const dispatch = workflowEvent(workflow, 'workflow_dispatch')
+    const call = workflowEvent(workflow, 'workflow_call')
     const build = workflowJob(workflow, 'build')
     const pythonCompat = workflowJob(workflow, 'python-compat')
     const validate = workflowJob(workflow, 'validate')
     const publishRuntime = workflowJob(workflow, 'publish-runtime')
     const publishSdk = workflowJob(workflow, 'publish-sdk')
-    if (!isRecord(dispatch.inputs)
-      || !isRecord(dispatch.inputs.publish)
+    if (!isRecord(call.inputs)
+      || !isRecord(call.inputs.publish)
       || !Array.isArray(pythonCompat.steps)
       || !Array.isArray(validate.steps)
       || !Array.isArray(publishRuntime.steps)
@@ -1230,9 +1210,9 @@ describe('Python release workflows', () => {
       throw new TypeError('Python release workflow must define publish input and release steps')
     }
 
-    expect(dispatch.inputs.publish).toMatchObject({ type: 'boolean', default: false })
+    expect(call.inputs.publish).toMatchObject({ type: 'boolean', default: false })
     if (!isRecord(workflow.on)) throw new TypeError('python-release workflow must define on')
-    expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
+    expect(Object.keys(workflow.on)).toEqual(['workflow_call'])
     expect(build).toMatchObject({
       uses: './.github/workflows/build-exe-for-python-sdk.yml',
       with: {
@@ -1260,13 +1240,13 @@ describe('Python release workflows', () => {
     expect(authorize.run).toContain('[ "$REPOSITORY" = "$PYPI_PUBLISHER_REPOSITORY" ]')
     expect(validateSteps).toContain('100000000')
     expect(publishRuntime).toMatchObject({
-      if: "github.event_name == 'workflow_dispatch' && inputs.publish",
+      if: 'inputs.publish',
       needs: 'validate',
       environment: 'pypi-runtime',
       permissions: { contents: 'read', 'id-token': 'write' },
     })
     expect(publishSdk).toMatchObject({
-      if: "github.event_name == 'workflow_dispatch' && inputs.publish",
+      if: 'inputs.publish',
       needs: ['validate', 'publish-runtime'],
       environment: 'pypi',
       permissions: { contents: 'read', 'id-token': 'write' },
@@ -1470,207 +1450,11 @@ describe('Python release workflows', () => {
   })
 })
 
-describe('Weighted approval workflow', () => {
-  it('publishes from the trusted default branch after pull request and review updates', () => {
-    const publisher = loadWorkflow('.github/workflows/weighted-approval.yml')
-    const reviewEvent = loadWorkflow('.github/workflows/weighted-approval-review-event.yml')
-    const pullRequest = workflowEvent(publisher, 'pull_request_target')
-    const workflowRun = workflowEvent(publisher, 'workflow_run')
-    const review = workflowEvent(reviewEvent, 'pull_request_review')
-    const job = workflowJob(publisher, 'publish-status')
-    const recordJob = workflowJob(reviewEvent, 'record-review-event')
-    if (!isRecord(publisher.on)) throw new TypeError('weighted-approval workflow must define events')
-    if (!isRecord(reviewEvent.on)) throw new TypeError('weighted-approval review event workflow must define events')
-    if (!Array.isArray(job.steps)) throw new TypeError('weighted-approval job must define steps')
-    if (!Array.isArray(recordJob.steps)) throw new TypeError('weighted-approval review event job must define steps')
-    const steps = job.steps.filter(isRecord)
-    const checkout = steps.find(step => step.name === 'Check out trusted approval policy')
-    const publish = steps.find(step => step.name === 'Publish weighted approval status')
-    const recordSteps = recordJob.steps.filter(isRecord)
-    const record = recordSteps.find(step => step.name === 'Record review event')
-
-    expect(publisher.name).toBe('weighted-approval')
-    expect(Object.keys(publisher.on)).toEqual(['pull_request_target', 'issue_comment', 'workflow_run'])
-    expect(workflowEvent(publisher, 'issue_comment').types).toEqual(['created', 'edited', 'deleted'])
-    expect(pullRequest.types).toEqual(['opened', 'synchronize', 'reopened', 'ready_for_review', 'converted_to_draft', 'edited'])
-    expect(workflowRun).toEqual({ workflows: ['weighted-approval-review-event'], types: ['completed'] })
-    expect(reviewEvent.name).toBe('weighted-approval-review-event')
-    expect(reviewEvent['run-name']).toBe('weighted-approval-review-event:${{ github.event.pull_request.number }}')
-    expect(Object.keys(reviewEvent.on)).toEqual(['pull_request_review'])
-    expect(review.types).toEqual(['submitted', 'edited', 'dismissed'])
-    expect(reviewEvent.permissions).toEqual({})
-    expect(publisher.permissions).toEqual({
-      checks: 'write',
-      contents: 'read',
-      'pull-requests': 'write',
-      statuses: 'write',
-    })
-    expect(publisher.concurrency).toEqual({
-      group: "weighted-approval-${{ (github.event.pull_request.number || github.event.issue.number) && format('weighted-approval-review-event:{0}', github.event.pull_request.number || github.event.issue.number) || github.event.workflow_run.display_title }}",
-      'cancel-in-progress': false,
-    })
-    expect(job).toMatchObject({
-      if: "(github.event_name != 'pull_request_target' || github.event.pull_request.state == 'open') && "
-        + "(github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') && "
-        + "(github.event_name != 'issue_comment' || (github.event.issue.pull_request && github.event.issue.state == 'open' &&\n"
-        + "  (contains(github.event.comment.body, '/delegate') || contains(github.event.changes.body.from, '/delegate'))))",
-      name: 'weighted approval publisher',
-      'runs-on': 'ubuntu-latest',
-      'timeout-minutes': 5,
-    })
-    expect(checkout).toMatchObject({
-      uses: 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
-      with: {
-        ref: '${{ github.event.repository.default_branch }}',
-        'persist-credentials': false,
-      },
-    })
-    const token = steps.find(step => step.id === 'decision-token')
-    expect(token).toMatchObject({
-      'continue-on-error': true,
-      uses: 'actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1',
-      with: {
-        'client-id': '${{ vars.DSH_APPROVAL_APP_CLIENT_ID }}',
-        'private-key': '${{ secrets.DSH_APPROVAL_APP_PRIVATE_KEY }}',
-        owner: 'deepseek-harness',
-        repositories: 'deepseek-harness',
-        'permission-checks': 'write',
-      },
-    })
-    const tokenIndex = steps.indexOf(token!)
-    expect(tokenIndex).toBeGreaterThan(steps.indexOf(checkout!))
-    expect(tokenIndex).toBeLessThan(steps.findIndex(step => step.id === 'revoke'))
-    for (const step of steps.filter(step => typeof step.run === 'string' && step.run.startsWith('node .github/review-ownership/check-approval.mjs'))) {
-      expect(step.env).toMatchObject({
-        DECISION_TOKEN: '${{ steps.decision-token.outputs.token }}',
-        DECISION_APP_SLUG: '${{ vars.DSH_APPROVAL_APP_SLUG }}',
-      })
-    }
-    const setupIndex = steps.findIndex(step => typeof step.uses === 'string' && step.uses.startsWith('actions/setup-python@'))
-    expect(steps[setupIndex]?.if).toBe("steps.revoke.outputs.active == 'true'")
-    expect(steps[setupIndex]?.uses).toBe('actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1')
-    const revokeIndex = steps.findIndex(step => step.id === 'revoke')
-    expect(revokeIndex).toBeGreaterThan(steps.indexOf(checkout!))
-    expect(revokeIndex).toBeLessThan(setupIndex)
-    expect(steps[revokeIndex]?.run).toBe('node .github/review-ownership/check-approval.mjs pending')
-    expect(steps.at(-1)).toMatchObject({
-      if: "failure() && steps.revoke.outputs.active == 'true'",
-      run: 'node .github/review-ownership/check-approval.mjs error',
-    })
-    const pythonJob = workflowJob(loadWorkflow('.github/workflows/ci-python.yml'), 'python-sdk')
-    expect(pythonJob.steps).toContainEqual({
-      name: 'Test production blame scoring',
-      run: "uv run --python 3.10 --with-requirements .github/review-ownership/requirements.txt python -m unittest discover -s .github/review-ownership -p 'test_*.py'",
-    })
-    expect(steps.find(step => step.name === 'Install production lexer')).toMatchObject({
-      if: "steps.revoke.outputs.active == 'true'",
-      run: 'python3 -m pip install -r .github/review-ownership/requirements.txt',
-    })
-    expect(publish).toMatchObject({
-      if: "steps.revoke.outputs.active == 'true'",
-      env: {
-        GITHUB_TOKEN: '${{ github.token }}',
-        GITHUB_RUN_URL: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
-      },
-      run: 'node .github/review-ownership/check-approval.mjs',
-    })
-    expect(recordJob).toMatchObject({
-      if: "github.event.pull_request.state == 'open'",
-      name: 'record weighted approval review event',
-      'runs-on': 'ubuntu-latest',
-      'timeout-minutes': 2,
-    })
-    expect(record).toBeDefined()
-    expect(record?.run).toBe("echo 'Recorded a weighted approval review event.'")
-    expect(recordSteps).toHaveLength(1)
-    expect(JSON.stringify(publisher)).not.toContain('github.event.pull_request.head')
-    expect(JSON.stringify(publisher).match(/secrets\.[A-Za-z0-9_]+/gu)).toEqual(['secrets.DSH_APPROVAL_APP_PRIVATE_KEY'])
-    expect(JSON.stringify(reviewEvent)).not.toContain('github.token')
-    expect(JSON.stringify(reviewEvent)).not.toContain('secrets.')
-  })
-})
-
-describe('Issue lifecycle workflow', () => {
-  it('allocates lifecycle runners only for events that can change the board', () => {
-    const lifecycle = loadWorkflow('.github/workflows/issue-lifecycle.yml')
-    const policy = loadWorkflow('.github/workflows/issue-policy.yml')
-    const lifecycleJob = workflowJob(lifecycle, 'lifecycle')
-    if (!Array.isArray(lifecycleJob.steps)) throw new TypeError('Issue lifecycle job must define steps')
-
-    expect(lifecycle.on).toHaveProperty('pull_request')
-    expect(lifecycle.on).toHaveProperty('pull_request_review')
-    expect(lifecycleJob.if).toContain("github.event.review.state == 'changes_requested'")
-    expect(lifecycleJob.if).toContain('github.event.changes.body != null')
-    // Keep the subscription-type gates: issue-lifecycle does not re-subscribe
-    // ready_for_review (issue-policy owns that) and only reacts to submitted
-    // review events.
-    const lifecyclePullRequest = workflowEvent(lifecycle, 'pull_request')
-    const lifecycleReview = workflowEvent(lifecycle, 'pull_request_review')
-    expect(lifecyclePullRequest.types).toContain('opened')
-    expect(lifecyclePullRequest.types).not.toContain('ready_for_review')
-    expect(lifecyclePullRequest.types).toContain('review_requested')
-    expect(lifecycleReview.types).toEqual(['submitted'])
-    expect(lifecyclePullRequest.types).not.toContain('synchronize')
-    expect(lifecyclePullRequest.types).not.toContain('labeled')
-    expect(lifecyclePullRequest.types).not.toContain('unlabeled')
-    const issueEvents = workflowEvent(lifecycle, 'issues')
-    expect(issueEvents.types).not.toContain('assigned')
-    expect(issueEvents.types).not.toContain('unassigned')
-    expect(issueEvents.types).toContain('typed')
-    expect(issueEvents.types).toContain('untyped')
-    const steps = lifecycleJob.steps.filter(isRecord)
-    const tokenStep = steps.find(s => s.name === 'Create project token')
-    const handleStep = steps.find(s => s.name === 'Handle repository event')
-    expect(tokenStep?.if).toBeUndefined()
-    expect(handleStep?.if).toBeUndefined()
-
-    // issue-policy owns PR validation; it is read-only and a real gate.
-    const policyPullRequest = workflowEvent(policy, 'pull_request')
-    expect(policyPullRequest.types).toContain('ready_for_review')
-  })
-
-  it('mints Project credentials only after preflight and always revalidates current metadata', () => {
-    const policy = loadWorkflow('.github/workflows/issue-policy.yml')
-    const policyJob = workflowJob(policy, 'policy')
-    if (!Array.isArray(policyJob.steps)) throw new TypeError('Issue policy job must define steps')
-    const steps = policyJob.steps.filter(isRecord)
-    const tokenStep = steps.find(step => step.name === 'Create Project read token')
-    const validateStep = steps.find(step => step.name === 'Validate pull request')
-    const preflightStep = steps.find(step => step.id === 'preflight')
-    expect(preflightStep).toMatchObject({ shell: 'bash' })
-    expect(preflightStep?.run).toContain('if [ -f .github/issue-management/selective-preflight.json ]; then')
-    expect(preflightStep?.run).toContain('node .github/issue-management/policy.mjs pr-preflight')
-    expect(preflightStep?.if).toBeUndefined()
-    expect(policyJob.if).toBeUndefined()
-    expect(validateStep?.if).toBe("${{ steps.preflight.outputs.legacy-automated != 'true' }}")
-
-    expect(tokenStep).toMatchObject({
-      id: 'app-token',
-      if: "${{ steps.preflight.outputs.needs-project == 'true' }}",
-      uses: 'actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1',
-      with: {
-        'client-id': '${{ vars.DSH_ISSUE_APP_CLIENT_ID }}',
-        'private-key': '${{ secrets.DSH_ISSUE_APP_PRIVATE_KEY }}',
-        owner: 'deepseek-harness',
-        repositories: 'deepseek-harness',
-        'permission-issues': 'read',
-        'permission-organization-projects': 'read',
-      },
-    })
-    expect(validateStep).toMatchObject({
-      env: {
-        GITHUB_TOKEN: '${{ github.token }}',
-        PROJECT_TOKEN: '${{ steps.app-token.outputs.token }}',
-      },
-    })
-  })
-})
-
 describe('npm release workflows', () => {
   it('passes the optional vendor channel as a quoted argument while preserving default publication', () => {
     const workflow = loadWorkflow('.github/workflows/release-vendor-publish.yml')
     expect(workflow.on).toMatchObject({
-      workflow_dispatch: {
+      workflow_call: {
         inputs: {
           'dist-tag': {
             required: false,
@@ -1698,20 +1482,20 @@ describe('npm release workflows', () => {
     })
   })
 
-  it('keeps publication dispatch-only and pack in the PR workflow', () => {
-    // pack stays in the PR/master release workflows so a PR proves the set packs.
+  it('keeps publication disabled and pack in the PR workflow', () => {
+    // pack stays in the PR/push release workflows so a PR proves the set packs.
     for (const file of ['release.yml', 'release-vendor.yml']) {
       const workflow = loadWorkflow(`.github/workflows/${file}`)
       if (!isRecord(workflow.jobs)) throw new TypeError(`${file} must define jobs`)
       expect(Object.keys(workflow.jobs).sort()).toEqual(file === 'release.yml' ? ['dependencies', 'pack'] : ['pack'])
     }
 
-    // publication is workflow_dispatch-only (never a PR check) and keeps the
-    // npm-publish environment plus the shared dist-tag group.
+    // No active caller can dispatch official npm publication. The retained
+    // reusable shell keeps the environment and shared concurrency contract.
     for (const file of ['release-publish.yml', 'release-vendor-publish.yml']) {
       const workflow = loadWorkflow(`.github/workflows/${file}`)
       if (!isRecord(workflow.on) || !isRecord(workflow.jobs)) throw new TypeError(`${file} must define on and jobs`)
-      expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
+      expect(Object.keys(workflow.on)).toEqual(['workflow_call'])
       const publish = workflow.jobs.publish
       if (!isRecord(publish)) throw new TypeError(`${file} must define a publish job`)
       expect(publish.environment).toBe('npm-publish')
@@ -1829,99 +1613,3 @@ function workflowJob(workflow: Record<string, unknown>, job: string): Record<str
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
-
-describe('Policy workflow shells', () => {
-  it.each(['pr-check-on-head-branch.yml', 'pr-check-after-approve.yml', 'pr-check-on-base-branch.yml'])(
-    '%s runs shell blocks that parse',
-    (file) => {
-      if (process.platform === 'win32') return
-      const workflow = loadWorkflow('.github/workflows/' + file)
-      if (!isRecord(workflow.jobs)) throw new TypeError(`${file} must define jobs`)
-      for (const job of Object.values(workflow.jobs)) {
-        if (!isRecord(job) || !Array.isArray(job.steps)) continue
-        for (const step of job.steps) {
-          if (!isRecord(step) || typeof step.run !== 'string') continue
-          const parsed = spawnSync('bash', ['-n'], { input: step.run, encoding: 'utf8' })
-          expect(`${String(step.name ?? step.id)}: ${parsed.status}: ${parsed.stderr}`).toBe(`${String(step.name ?? step.id)}: 0: `)
-        }
-      }
-    },
-  )
-})
-
-describe('Policy workflows', () => {
-  const workflows = [
-    ['pr-check-on-head-branch.yml', ['master']],
-    ['pr-check-after-approve.yml', ['approve']],
-  ] as const
-
-  function stepsOf(job: Record<string, unknown>): Record<string, unknown>[] {
-    const steps = job.steps as unknown[]
-    if (!Array.isArray(steps)) throw new TypeError('job must define steps')
-    return steps.filter(isRecord)
-  }
-
-  it.each(workflows)('%s runs each check from master and reads its mode from a repository variable', (file, jobs) => {
-    const workflow = loadWorkflow('.github/workflows/' + file)
-    expect(Object.keys(workflow).filter(key => key !== 'name')).toEqual(['on', 'permissions', 'concurrency', 'jobs'])
-    const events = workflow.on
-    if (!isRecord(events)) throw new TypeError(`${file} must declare events`)
-    expect(events).not.toHaveProperty('pull_request')
-    expect(events).toHaveProperty('pull_request_target')
-    for (const job of jobs) {
-      const check = stepsOf(workflowJob(workflow, job)).find(step => typeof step.uses === 'string' && step.uses.startsWith('deepseek-harness/deepseek-harness-check@'))
-      if (check === undefined || !isRecord(check.env)) throw new TypeError(`${file} ${job} must run the check action with env`)
-      expect(String(check.env.CHECK_MODE)).toContain('vars.MERGE_POLICY_')
-    }
-  })
-
-  it('runs on the release branches as well as master, on both pull requests and base-branch pushes', () => {
-    const branches = ['master', 'release/dsh-[0-9]+.[0-9]+.[0-9]+']
-    for (const file of ['pr-check-on-head-branch.yml', 'pr-check-after-approve.yml']) {
-      const workflow = loadWorkflow('.github/workflows/' + file)
-      const events = workflow.on
-      if (!isRecord(events) || !isRecord(events.pull_request_target)) throw new TypeError(`${file} must trigger on pull_request_target`)
-      expect(events.pull_request_target.branches).toEqual(branches)
-    }
-    const workflow = loadWorkflow('.github/workflows/pr-check-on-base-branch.yml')
-    const events = workflow.on
-    if (!isRecord(events) || !isRecord(events.push)) throw new TypeError('the base-branch workflow must trigger on push')
-    expect(events.push.branches).toEqual(branches)
-  })
-
-  it('decides the review verdict in one Approve Check job that can publish the check run', () => {
-    const workflow = loadWorkflow('.github/workflows/pr-check-after-approve.yml')
-    if (!isRecord(workflow.jobs)) throw new TypeError('the workflow must define jobs')
-    expect(Object.keys(workflow.jobs)).toEqual(['approve'])
-    const job = workflow.jobs.approve
-    if (!isRecord(job) || !isRecord(job.permissions)) throw new TypeError('the approve job must declare permissions')
-    expect(job.name).toBe('Approve Check')
-    expect(job.permissions.checks).toBe('write')
-    const check = stepsOf(job).find(step => typeof step.uses === 'string' && step.uses.startsWith('deepseek-harness/deepseek-harness-check@'))
-    if (check === undefined || !isRecord(check.env)) throw new TypeError('the job must run the check action with env')
-    expect(String(check.env.CHECK_MODE)).toContain('vars.MERGE_POLICY_HEAD_DIFF')
-    expect(JSON.stringify(workflow)).not.toContain('MERGE_POLICY_REVIEW')
-  })
-
-  it('keeps the pre-merge build behind the merge step, which honours the mode on its failures', () => {
-    const steps = stepsOf(workflowJob(loadWorkflow('.github/workflows/pr-check-on-head-branch.yml'), 'pre-merge'))
-    const merge = steps.findIndex(step => step.id === 'merge')
-    const build = steps.findIndex(step => step.name === "Run the tree's pre-merge check")
-    expect(merge).toBeGreaterThanOrEqual(0)
-    expect(build).toBeGreaterThan(merge)
-    const merging = steps[merge]
-    if (merging === undefined || !isRecord(merging.env)) throw new TypeError('the merge step must set env')
-    expect(String(merging.env.CHECK_MODE)).toContain('MERGE_POLICY_PRE_MERGE')
-    for (const step of steps.slice(merge)) {
-      if (typeof step.run !== 'string') continue
-      expect(step.run).toContain('"$CHECK_MODE" = block')
-    }
-    for (const step of steps.slice(merge + 1)) expect(step.if).toBe("steps.merge.outputs.merged == 'true'")
-    const run = steps[build]?.run
-    if (typeof run !== 'string') throw new TypeError('the pre-merge check step must run a command')
-    expect(run).toContain('node scripts/pre-merge-check.ts')
-    // The script annotates its own failures; the step keeps a mode-aware guard for a check that crashes.
-    expect(run).toContain('exited without reporting')
-    expect(run).toContain('"$CHECK_MODE" = block')
-  })
-})

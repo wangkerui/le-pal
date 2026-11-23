@@ -3,8 +3,9 @@
 # tarballs; each native binary is built on its matching architecture.
 name: Node Addon System Release
 
+# Disabled for LePal: official @deepseek-ai package publication has no active caller.
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       publish:
         description: Publish packed tarballs to npm. Must run from a node-addon-system-v* tag.

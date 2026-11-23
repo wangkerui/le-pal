@@ -2,8 +2,10 @@ name: Publish Desktop · Rollout & Website
 
 run-name: Rollout Desktop package ${{ inputs.package_run_id }} / attempt ${{ inputs.package_run_attempt }} · ${{ inputs.rollout_percentage && format('{0}%', inputs.rollout_percentage) || 'website only' }}
 
+# Disabled for LePal: official Desktop rollout and website publication has no
+# active caller.
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       package_run_id:
         description: '已经完成首次 COS 发布的 Package Desktop run ID'

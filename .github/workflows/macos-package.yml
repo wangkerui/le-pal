@@ -1,7 +1,9 @@
 name: Package Desktop · macOS · Apple Silicon
 
+# Disabled for LePal: DSH-signed macOS packaging and retained publishing have no
+# active caller.
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       source_ref:
         description: '打包源码：test 支持仓库内分支或 dsh-v* tag；production 仅支持 master 或 dsh-v* tag；源码须包含 CI 适配脚本'

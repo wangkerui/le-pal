@@ -3,14 +3,14 @@
 # separate sequences with their own workflows and version lines.
 #
 # Pack and dependency-layout verification run without credentials on every pull
-# request and master push. Publication is a manual workflow_dispatch of
-# release-publish.yml from a dsh-v* tag.
+# request and push to le-pal-dev or master. Official npm publication remains
+# disabled in release-publish.yml.
 name: Release (dsh)
 
 on:
   pull_request:
   push:
-    branches: [master]
+    branches: [le-pal-dev, master]
   workflow_dispatch:
 
 permissions:

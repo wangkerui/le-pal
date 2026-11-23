@@ -1,8 +1,9 @@
 name: CI master
 
+# Heavy post-merge DSH coverage, Wine, and runner-benchmark drills are manual
+# only for LePal. Normal post-merge Linux, Windows, and Python coverage runs in
+# the core CI workflows.
 on:
-  push:
-    branches: [master]
   workflow_dispatch:
     inputs:
       suite:

@@ -103,7 +103,7 @@ for (const [file, jobIds] of [['release.yml', ['dependencies', 'pack']], ['relea
     const release = workflow(file)
     it('preserves the logical jobs, rehearsal events and read-only permission', () => {
       expect(Object.keys(release.jobs)).toEqual(jobIds)
-      expect(release.on).toEqual({ pull_request: null, push: { branches: ['master'] }, workflow_dispatch: null })
+      expect(release.on).toEqual({ pull_request: null, push: { branches: ['le-pal-dev', 'master'] }, workflow_dispatch: null })
       expect(release.permissions).toEqual({ contents: 'read' })
       expect(release.concurrency).toEqual({ group: '${{ github.workflow }}-${{ github.ref }}', 'cancel-in-progress': true })
     })
@@ -180,14 +180,14 @@ for (const [file, jobIds] of [['release.yml', ['dependencies', 'pack']], ['relea
   })
 }
 
-it('keeps vendor publication manual and entirely hosted', () => {
+it('keeps vendor publication disabled and entirely hosted', () => {
   const publish = workflow('release-vendor-publish.yml')
-  expect(Object.keys(publish.on)).toEqual(['workflow_dispatch'])
+  expect(Object.keys(publish.on)).toEqual(['workflow_call'])
   for (const job of Object.values(publish.jobs)) expect(job['runs-on']).toBe(hosted)
 })
-it('keeps DSH publication manual and delegates all helper selections to the Mac workflow', () => {
+it('keeps DSH publication disabled and delegates all helper selections to the Mac workflow', () => {
   const publish = workflow('release-publish.yml')
-  expect(Object.keys(publish.on)).toEqual(['workflow_dispatch'])
+  expect(Object.keys(publish.on)).toEqual(['workflow_call'])
   const helper = publish.jobs['cua-helper-macos']!
   expect(helper).toEqual({
     if: "startsWith(github.ref, 'refs/tags/dsh-v') || inputs.skip-tag-check",
@@ -198,7 +198,7 @@ it('keeps DSH publication manual and delegates all helper selections to the Mac 
     if (name !== 'cua-helper-macos') expect(job['runs-on']).toBe(hosted)
   }
   expect(JSON.stringify(publish)).not.toContain('cua_run_attempt')
-  expect(publish.on['workflow_dispatch']).toMatchObject({ inputs: { 'skip-tag-check': {
+  expect(publish.on['workflow_call']).toMatchObject({ inputs: { 'skip-tag-check': {
     description: 'Skip release tag validation for the selected ref; other publication checks still apply.',
   } } })
   expect(publish.jobs['pack']!.needs).toBe('cua-helper-macos')
@@ -275,11 +275,10 @@ it('downloads the selected producer artifact and verifies its build key before p
   expect(pack.steps.indexOf(stage)).toBeLessThan(pack.steps.findIndex(step => step.name === 'Pack release tarballs'))
 })
 
-it('checks out the Actions run commit and exposes only the preset on the manual helper form', () => {
+it('checks out the Actions run commit and exposes only the callable helper inputs', () => {
   const helper = workflow('cua-helper-package-macos.yml')
-  const dispatch = helper.on['workflow_dispatch'] as { inputs: Record<string, unknown> }
   const called = helper.on['workflow_call'] as { inputs: Record<string, unknown> }
-  expect(Object.keys(dispatch.inputs)).toEqual(['preset'])
+  expect(Object.keys(helper.on)).toEqual(['workflow_call'])
   expect(called.inputs).toEqual({ reuse: { type: 'boolean', default: false },
     cua_macos_run_id: { type: 'string', default: '' }, preset: { type: 'string', default: 'production' } })
   const job = helper.jobs['package']!

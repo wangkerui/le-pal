@@ -119,7 +119,7 @@ it.skipIf(process.platform === 'win32').each(['source', 'configuration', 'archit
 
 it('keeps company signing outside pull-request release rehearsals', () => {
   const workflow = readFileSync(resolve('.github/workflows/cua-helper-package-macos.yml'), 'utf8')
-  expect(workflow).toContain('workflow_dispatch:')
+  expect(workflow).not.toContain('workflow_dispatch:')
   expect(workflow).toContain('workflow_call:')
   expect(workflow).not.toContain('pull_request:')
   expect(workflow).toContain('dsh-mac-package-trial')

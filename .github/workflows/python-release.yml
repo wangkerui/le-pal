@@ -1,11 +1,10 @@
 name: Release (Python)
 
-# A manual run with publish=false builds and validates the complete release
-# without registry credentials. Publication is accepted only from a manual run
-# on the matching python-v* tag when the private publisher-repository identity
-# and public-PyPI switch are configured.
+# Disabled for LePal: official PyPI publication has no active caller. The
+# release build remains available as a reusable workflow for a future LePal
+# publisher identity.
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       publish:
         description: Publish the validated wheels to public PyPI. Must run from a python-v* tag.
@@ -106,7 +105,7 @@ jobs:
 
       - name: Authorize publication request
         env:
-          PUBLISH: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+          PUBLISH: ${{ inputs.publish }}
           PUBLIC_PYPI_RELEASE_ENABLED: ${{ vars.PUBLIC_PYPI_RELEASE_ENABLED }}
           PYPI_PUBLISHER_REPOSITORY: ${{ vars.PYPI_PUBLISHER_REPOSITORY }}
           REPOSITORY: ${{ github.repository }}
@@ -184,7 +183,7 @@ jobs:
 
   publish-runtime:
     name: Publish runtime wheels to public PyPI
-    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    if: inputs.publish
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -219,7 +218,7 @@ jobs:
   # to overwrite the runtime release.
   publish-sdk:
     name: Publish SDK wheel to public PyPI
-    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    if: inputs.publish
     needs: [validate, publish-runtime]
     runs-on: ubuntu-latest
     timeout-minutes: 10

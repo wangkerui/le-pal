@@ -2,10 +2,9 @@
 # Rules: .github/stale-pull-requests/remind.mjs.
 name: Stale pull requests
 
+# Disabled for LePal: automatic 21-day pull-request closure is an upstream policy.
 on:
-  schedule:
-    - cron: '0 2 * * *'
-  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read

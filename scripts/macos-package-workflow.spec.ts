@@ -31,13 +31,13 @@ describe.each(['arm64', 'x64'])('macOS %s packaging', (arch) => {
     expect(cache('upload-artifact')?.run).toContain('PNPM_CONFIG_STORE_DIR=')
   })
 
-  it('confines signed Mac packaging to manual dispatch and a dedicated Apple Silicon runner', () => {
-    expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
+  it('keeps signed Mac packaging callable but without a manual entry point', () => {
+    expect(Object.keys(workflow.on)).toEqual(['workflow_call'])
     expect(workflow.jobs.package!.env.PACKAGE_VERSION_MODE).toBe("${{ inputs.version_mode == 'follow-dsh' && 'product' || inputs.version_mode == 'build-number' && 'auto' || inputs.version_mode }}")
-    expect(workflow.on.workflow_dispatch).toMatchObject({ inputs: { version_mode: { default: 'default', options: ['default', 'follow-dsh', 'build-number', 'manual'] } } })
+    expect(workflow.on.workflow_call).toMatchObject({ inputs: { version_mode: { default: 'default', options: ['default', 'follow-dsh', 'build-number', 'manual'] } } })
     expect(workflow.jobs.package).not.toHaveProperty('name')
-    expect(workflow.on.workflow_dispatch).toMatchObject({ inputs: { test_release_id: { type: 'string', default: '', required: false } } })
-    expect(workflow.on.workflow_dispatch).not.toHaveProperty('inputs.publish')
+    expect(workflow.on.workflow_call).toMatchObject({ inputs: { test_release_id: { type: 'string', default: '', required: false } } })
+    expect(workflow.on.workflow_call).not.toHaveProperty('inputs.publish')
     expect(workflow.permissions).toEqual({ contents: 'read' })
     expect(workflow.concurrency).toEqual({ group: 'macos-desktop-package', 'cancel-in-progress': false })
     expect(workflow.jobs.package!['runs-on']).toEqual(['self-hosted', 'macOS', 'ARM64', 'dsh-mac-package-trial'])
@@ -56,7 +56,7 @@ describe.each(['arm64', 'x64'])('macOS %s packaging', (arch) => {
   })
 
   it('defaults to notarization and labels the explicit debugging option', () => {
-    expect(workflow.on.workflow_dispatch).toMatchObject({ inputs: { skip_notarization: {
+    expect(workflow.on.workflow_call).toMatchObject({ inputs: { skip_notarization: {
       type: 'boolean', default: false,
       description: '跳过公证和 stapling：仅限内部调试，禁止发布到 test / production 或用于自动更新；需要发布请勿勾选',
     } } })
@@ -76,7 +76,7 @@ describe.each(['arm64', 'x64'])('macOS %s packaging', (arch) => {
   })
 
   it('offers ZIP compression choices with a fast default', () => {
-    expect(workflow.on.workflow_dispatch).toMatchObject({ inputs: { compression_level: {
+    expect(workflow.on.workflow_call).toMatchObject({ inputs: { compression_level: {
       type: 'choice', options: ['3', '7'], default: '3', required: true,
     } } })
     expect(workflow.jobs.package!.env.PACKAGE_MACOS_ZIP_COMPRESSION_LEVEL).toBe('${{ inputs.compression_level }}')

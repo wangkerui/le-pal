@@ -60,26 +60,26 @@ it.skipIf(process.platform !== 'win32')('resets only the allocated checkout with
   }
 })
 
-it('routes manual packaging to the dedicated runner with explicit preset and signing selection', () => {
-  expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
-  expect(workflow.on.workflow_dispatch).toMatchObject({ inputs: { version_mode: { default: 'default', options: ['default', 'follow-dsh', 'build-number', 'manual'] } } })
+it('keeps signed packaging callable but without a manual entry point', () => {
+  expect(Object.keys(workflow.on)).toEqual(['workflow_call'])
+  expect(workflow.on.workflow_call).toMatchObject({ inputs: { version_mode: { default: 'default', options: ['default', 'follow-dsh', 'build-number', 'manual'] } } })
   expect(workflow.jobs.package).not.toHaveProperty('name')
-  expect(job['runs-on']).toBe('dsh-win-package-trial')
+  expect(job['runs-on']).toBe('${{ inputs.runner }}')
   expect(JSON.stringify(job.env)).not.toContain('runner.')
   expect(job.steps.find(step => step.name === 'Configure persistent pnpm store')?.env?.DSH_DESKTOP_PACKAGE_CACHE_DIR)
     .toBe('${{ runner.tool_cache }}/dsh-desktop-package-cache')
   expect(workflow.concurrency).toEqual({ group: 'windows-desktop-package', 'cancel-in-progress': false })
   expect(workflow.permissions).toEqual({ contents: 'read' })
-  expect(Object.keys(workflow.on.workflow_dispatch!.inputs).sort()).toEqual([
-    'build_version', 'cache_namespace', 'compression_level', 'preset', 'signing', 'source_ref', 'test_release_id', 'update_channel', 'version_mode',
+  expect(Object.keys(workflow.on.workflow_call!.inputs).sort()).toEqual([
+    'build_version', 'cache_namespace', 'compression_level', 'preset', 'runner', 'signing', 'source_ref', 'test_release_id', 'update_channel', 'version_mode',
   ])
-  expect(workflow.on.workflow_dispatch!.inputs.signing!.default).toBe('signed')
-  expect(workflow.on.workflow_dispatch!.inputs.compression_level).toMatchObject({ type: 'choice', options: ['3', '7'], default: '3', required: true })
+  expect(workflow.on.workflow_call!.inputs.signing!.default).toBe('signed')
+  expect(workflow.on.workflow_call!.inputs.compression_level).toMatchObject({ type: 'choice', options: ['3', '7'], default: '3', required: true })
   expect(job.env.PACKAGE_WINDOWS_COMPRESSION_LEVEL).toBe('${{ inputs.compression_level }}')
-  expect(workflow.on.workflow_dispatch!.inputs.build_version!.required).toBe(false)
-  expect(workflow.on.workflow_dispatch!.inputs.version_mode!.default).toBe('default')
-  expect(workflow.on.workflow_dispatch!.inputs.source_ref!.default).toBe('master')
-  expect(workflow.on.workflow_dispatch!.inputs.update_channel!.default).toBe('nightly')
+  expect(workflow.on.workflow_call!.inputs.build_version!.required).toBe(false)
+  expect(workflow.on.workflow_call!.inputs.version_mode!.default).toBe('default')
+  expect(workflow.on.workflow_call!.inputs.source_ref!.default).toBe('master')
+  expect(workflow.on.workflow_call!.inputs.update_channel!.default).toBe('nightly')
   expect(job.env.PACKAGE_VERSION_MODE).toBe("${{ inputs.version_mode == 'follow-dsh' && 'product' || inputs.version_mode == 'build-number' && 'auto' || inputs.version_mode }}")
   expect(job.env.PACKAGE_SOURCE_REF).toBe('${{ inputs.source_ref }}')
   expect(job.env.DSH_DESKTOP_UPDATE_CHANNEL).toBe('${{ inputs.update_channel }}')

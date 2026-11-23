@@ -1,8 +1,9 @@
 name: Release (SSH helper)
 
-# Validation accepts any ref; publication requires the matching dsh-v<version> tag.
+# Disabled for LePal: the DSH-tagged GitHub Release path has no active caller.
+# The reusable build workflow remains available for a future LePal release chain.
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       publish:
         description: Publish verified archives to GitHub Release. Must run from the matching dsh-v<version> tag.

@@ -28,9 +28,9 @@ it('rejects debugging packages before dependency setup and pins the checked atte
   expect(steps.find(step => step.id === 'route')?.env?.DESKTOP_PACKAGE_ATTEMPT).toBe('${{ steps.preflight.outputs.attempt }}')
 })
 
-it('selects packages manually and gates production secrets with the production Environment', () => {
-  expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
-  expect(workflow.on.workflow_dispatch).toMatchObject({ inputs: {
+it('keeps official publication callable but without a manual entry point', () => {
+  expect(Object.keys(workflow.on)).toEqual(['workflow_call'])
+  expect(workflow.on.workflow_call).toMatchObject({ inputs: {
     package_run_id: { type: 'string', required: true },
     package_run_attempt: { type: 'string', required: false, default: '' },
   } })
@@ -81,7 +81,7 @@ it('rejects non-master dispatch before scheduling a self-hosted job', () => {
 })
 
 it('defaults to production website upload and separates cache-only recovery', () => {
-  expect(workflow.on.workflow_dispatch).toMatchObject({ inputs: { upload_website: { type: 'boolean', default: true } } })
+  expect(workflow.on.workflow_call).toMatchObject({ inputs: { upload_website: { type: 'boolean', default: true } } })
   expect(workflow.jobs.prepare!.env?.DESKTOP_UPLOAD_WEBSITE).toBe('${{ inputs.upload_website }}')
   expect(JSON.stringify(workflow)).not.toContain('DOWNLOAD_PROD_EO_ZONE_ID')
   const upload = workflow.jobs['upload-website-installer']!

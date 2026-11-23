@@ -1,7 +1,9 @@
 name: Package Desktop · Windows · x64
 
+# Disabled for LePal: DSH-signed Windows packaging and retained publishing have
+# no active caller. Use lepal-windows-package.yml for the current product path.
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       runner:
         description: '运行器标签'

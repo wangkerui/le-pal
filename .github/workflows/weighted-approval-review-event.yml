@@ -1,9 +1,9 @@
 name: weighted-approval-review-event
 run-name: weighted-approval-review-event:${{ github.event.pull_request.number }}
 
+# Disabled for LePal: companion event source for weighted-approval.
 on:
-  pull_request_review:
-    types: [submitted, edited, dismissed]
+  workflow_call:
 
 permissions: {}
 

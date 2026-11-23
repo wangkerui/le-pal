@@ -173,7 +173,7 @@ it('keeps rollout approval and website recovery separate without tag creation or
   expect(text).not.toContain('DOWNLOAD_PROD_EO_ZONE_ID')
   const workflow = load(text) as {
     name: string
-    on: { workflow_dispatch: { inputs: Record<string, { required?: boolean; default?: unknown }> } }
+    on: { workflow_call: { inputs: Record<string, { required?: boolean; default?: unknown }> } }
     jobs: Record<string, {
       name?: string
       outputs?: Record<string, string>
@@ -184,9 +184,9 @@ it('keeps rollout approval and website recovery separate without tag creation or
     }>
   }
   expect(workflow.name).toBe('Publish Desktop · Rollout & Website')
-  expect(workflow.on.workflow_dispatch.inputs.package_run_attempt!.required).toBe(true)
-  expect(workflow.on.workflow_dispatch.inputs.upload_website!.default).toBe(false)
-  expect(workflow.on.workflow_dispatch.inputs.rollout_percentage!.default).toBe('')
+  expect(workflow.on.workflow_call.inputs.package_run_attempt!.required).toBe(true)
+  expect(workflow.on.workflow_call.inputs.upload_website!.default).toBe(false)
+  expect(workflow.on.workflow_call.inputs.rollout_percentage!.default).toBe('')
   expect(workflow.jobs.publish!.environment).toContain('desktop-production')
   expect(workflow.jobs.publish!.if).toBe("needs.prepare.outputs.rollout-requested == 'true'")
   const upload = workflow.jobs['upload-website-installer']!

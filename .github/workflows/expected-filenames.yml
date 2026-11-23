@@ -6,6 +6,12 @@ on:
       - '*[gG][oO][lL][dD][eE][nN]*'
       - '**/*[gG][oO][lL][dD][eE][nN]*'
       - '!vendor/**'
+  push:
+    branches: [le-pal-dev, master]
+    paths:
+      - '*[gG][oO][lL][dD][eE][nN]*'
+      - '**/*[gG][oO][lL][dD][eE][nN]*'
+      - '!vendor/**'
 
 permissions:
   contents: read
@@ -18,9 +24,7 @@ env:
 jobs:
   expected-filenames:
     name: no golden filenames
-    runs-on: >-
-      ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404'
-          || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
 

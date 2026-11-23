@@ -62,7 +62,7 @@ describe('master-only platform scheduling', () => {
       expect(condition).toContain('!cancelled()')
       expect(evaluateCondition(condition, false, results)).toBe(true)
       expect(evaluateCondition(condition, true, results)).toBe(false)
-      expect(evaluateCondition(condition, false, results, 'push')).toBe(false)
+      expect(evaluateCondition(condition, false, results, 'push')).toBe(true)
       const failureStep = aggregate.steps!.find(step => step.name === 'Fail if any needed job did not succeed')!
       expect(evaluateCondition(failureStep.if!, false, results)).toBe(result !== 'success')
       expect(failureStep.run).toContain('exit 1')
@@ -74,21 +74,25 @@ describe('master-only platform scheduling', () => {
     expect(evaluateCondition(workflow('ci.yml').jobs['all-checks-passed']!.if as string, true, ['success'])).toBe(false)
   })
 
-  it('keeps the required Python PR verdict and its two x64 targets in CI Python', () => {
+  it('keeps the required Python verdict and its two x64 targets in CI Python', () => {
     const pr = workflow('ci-python.yml')
-    expect(Object.keys(pr.on)).toEqual(['pull_request'])
+    expect(Object.keys(pr.on)).toEqual(['pull_request', 'push'])
     expect(pr.jobs['python-runtime']).toMatchObject({
-      if: "github.event_name == 'pull_request'",
       uses: runtimeBuilder,
-      with: { ci: true, targets: 'node24-linux-x64,node24-win-x64' },
+      with: {
+        ci: true,
+        live_api: "${{ vars.LEPAL_LIVE_API == 'true' }}",
+        targets: 'node24-linux-x64,node24-win-x64',
+      },
     })
+    expect(pr.jobs['python-runtime']).not.toHaveProperty('if')
     expect(pr.jobs.windows).toBeUndefined()
     expect(JSON.stringify(pr.jobs)).not.toMatch(/wine-windows-gates|check:windows-wine/)
     const aggregate = pr.jobs['python-checks-passed']!
     expect(aggregate.needs).toContain('python-runtime')
     expect(aggregate.needs).not.toContain('windows')
     expect(aggregate.needs!.every(id => id in pr.jobs)).toBe(true)
-    expect(aggregate.if).toBe("${{ !cancelled() && github.event_name == 'pull_request' }}")
+    expect(aggregate.if).toBe('${{ !cancelled() }}')
     expect(aggregate.steps).toContainEqual(expect.objectContaining({
       if: "contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')",
     }))
@@ -97,10 +101,10 @@ describe('master-only platform scheduling', () => {
     }
   })
 
-  it('runs all three deferred carriers on master pushes with fail-loud API credentials', () => {
+  it('keeps deferred carriers manual-only for LePal', () => {
     const master = workflow('ci-master.yml')
-    expect(master.on.push).toEqual({ branches: ['master'] })
-    expect(Object.keys(master.on).sort()).toEqual(['push', 'workflow_dispatch'])
+    expect(master.on).not.toHaveProperty('push')
+    expect(Object.keys(master.on)).toEqual(['workflow_dispatch'])
     const runtime = master.jobs['python-runtime']!
     expect(runtime).toMatchObject({
       if: masterPush,
@@ -116,10 +120,8 @@ describe('master-only platform scheduling', () => {
     )
     const build = builder.jobs.build!
     const preflight = build.steps!.find(step => step.name === 'Preflight installed-wheel real API test (POSIX)')!
+    expect(preflight.if).toContain('inputs.live_api')
     expect(preflight.if).toContain('inputs.ci')
-    expect(preflight.if).toContain("github.event_name != 'pull_request'")
-    expect(preflight.if).toContain('github.event.pull_request.head.repo.fork')
-    expect(preflight.if).toContain("github.event.pull_request.user.login == 'dependabot[bot]'")
     expect(preflight.run).toContain('exit 1')
   })
 

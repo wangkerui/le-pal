@@ -1,10 +1,8 @@
 name: Issue policy
 
+# Disabled for LePal: DeepSeek Issue and Project policy enforcement.
 on:
-  pull_request:
-    types: [opened, edited, synchronize, reopened, labeled, unlabeled, ready_for_review, review_requested]
-  pull_request_review:
-    types: [submitted]
+  workflow_call:
 
 permissions:
   contents: read
